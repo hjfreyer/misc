@@ -12,7 +12,7 @@ const (
 )
 
 func main() {
-	t := time.Now()
+	t := time.Now().In(time.UTC)
 	hour, min, sec := t.Clock()
 	nsec := t.Nanosecond()
 
