@@ -1,2169 +1,510 @@
 
 <style>
-h1 {
-  text-align: center;
+.page {
   page-break-before: always;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   font-family: monospace;
 }
 
 .pagenum {
-  text-align: center;
   font-family: monospace;
 }
 
 .colset {
   display: flex;
-  font-size: 11px;
+  font-size: 11.5px;
   justify-content: space-between;
 }
 
 pre {
-  width: 115px;
+  marign: auto;
+  font-size: 11px;
 }
 
 </style>
 
-<h1>BIP 39 Wordlist</h1>
-  <div class="colset">
-<pre>
-0000 000 abandon
-0001 001 ability
-0002 002 able
-0003 003 about
-0004 004 above
-0005 005 absent
-0006 006 absorb
-0007 007 abstract
-0008 008 absurd
-0009 009 abuse
-0010 00A access
-0011 00B accident
-0012 00C account
-0013 00D accuse
-0014 00E achieve
-0015 00F acid
-0016 010 acoustic
-0017 011 acquire
-0018 012 across
-0019 013 act
-0020 014 action
-0021 015 actor
-0022 016 actress
-0023 017 actual
-0024 018 adapt
-0025 019 add
-0026 01A addict
-0027 01B address
-0028 01C adjust
-0029 01D admit
-0030 01E adult
-0031 01F advance
-0032 020 advice
-0033 021 aerobic
-0034 022 affair
-0035 023 afford
-0036 024 afraid
-0037 025 again
-0038 026 age
-0039 027 agent
-0040 028 agree
-0041 029 ahead
-0042 02A aim
-0043 02B air
-0044 02C airport
-0045 02D aisle
-0046 02E alarm
-0047 02F album
-0048 030 alcohol
-0049 031 alert
-0050 032 alien
-0051 033 all
-0052 034 alley
-0053 035 allow
-0054 036 almost
-0055 037 alone
-0056 038 alpha
-0057 039 already
-0058 03A also
-0059 03B alter
-0060 03C always
-0061 03D amateur
-0062 03E amazing
-0063 03F among
+<div class="page"><h1>BIP 39 Wordlist</h1><pre>
+DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD     
+==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ======== 
+0000 0000 abandon   0064 0100 amount    0128 0200 avoid     0192 0300 blossom   0256 0400 cactus   
+0001 0001 ability   0065 0101 amused    0129 0201 awake     0193 0301 blouse    0257 0401 cage     
+0002 0002 able      0066 0102 analyst   0130 0202 aware     0194 0302 blue      0258 0402 cake     
+0003 0003 about     0067 0103 anchor    0131 0203 away      0195 0303 blur      0259 0403 call     
+0004 0004 above     0068 0104 ancient   0132 0204 awesome   0196 0304 blush     0260 0404 calm     
+0005 0005 absent    0069 0105 anger     0133 0205 awful     0197 0305 board     0261 0405 camera   
+0006 0006 absorb    0070 0106 angle     0134 0206 awkward   0198 0306 boat      0262 0406 camp     
+0007 0007 abstract  0071 0107 angry     0135 0207 axis      0199 0307 body      0263 0407 can      
+0008 0010 absurd    0072 0110 animal    0136 0210 baby      0200 0310 boil      0264 0410 canal    
+0009 0011 abuse     0073 0111 ankle     0137 0211 bachelor  0201 0311 bomb      0265 0411 cancel   
+0010 0012 access    0074 0112 announce  0138 0212 bacon     0202 0312 bone      0266 0412 candy    
+0011 0013 accident  0075 0113 annual    0139 0213 badge     0203 0313 bonus     0267 0413 cannon   
+0012 0014 account   0076 0114 another   0140 0214 bag       0204 0314 book      0268 0414 canoe    
+0013 0015 accuse    0077 0115 answer    0141 0215 balance   0205 0315 boost     0269 0415 canvas   
+0014 0016 achieve   0078 0116 antenna   0142 0216 balcony   0206 0316 border    0270 0416 canyon   
+0015 0017 acid      0079 0117 antique   0143 0217 ball      0207 0317 boring    0271 0417 capable  
+0016 0020 acoustic  0080 0120 anxiety   0144 0220 bamboo    0208 0320 borrow    0272 0420 capital  
+0017 0021 acquire   0081 0121 any       0145 0221 banana    0209 0321 boss      0273 0421 captain  
+0018 0022 across    0082 0122 apart     0146 0222 banner    0210 0322 bottom    0274 0422 car      
+0019 0023 act       0083 0123 apology   0147 0223 bar       0211 0323 bounce    0275 0423 carbon   
+0020 0024 action    0084 0124 appear    0148 0224 barely    0212 0324 box       0276 0424 card     
+0021 0025 actor     0085 0125 apple     0149 0225 bargain   0213 0325 boy       0277 0425 cargo    
+0022 0026 actress   0086 0126 approve   0150 0226 barrel    0214 0326 bracket   0278 0426 carpet   
+0023 0027 actual    0087 0127 april     0151 0227 base      0215 0327 brain     0279 0427 carry    
+0024 0030 adapt     0088 0130 arch      0152 0230 basic     0216 0330 brand     0280 0430 cart     
+0025 0031 add       0089 0131 arctic    0153 0231 basket    0217 0331 brass     0281 0431 case     
+0026 0032 addict    0090 0132 area      0154 0232 battle    0218 0332 brave     0282 0432 cash     
+0027 0033 address   0091 0133 arena     0155 0233 beach     0219 0333 bread     0283 0433 casino   
+0028 0034 adjust    0092 0134 argue     0156 0234 bean      0220 0334 breeze    0284 0434 castle   
+0029 0035 admit     0093 0135 arm       0157 0235 beauty    0221 0335 brick     0285 0435 casual   
+0030 0036 adult     0094 0136 armed     0158 0236 because   0222 0336 bridge    0286 0436 cat      
+0031 0037 advance   0095 0137 armor     0159 0237 become    0223 0337 brief     0287 0437 catalog  
+0032 0040 advice    0096 0140 army      0160 0240 beef      0224 0340 bright    0288 0440 catch    
+0033 0041 aerobic   0097 0141 around    0161 0241 before    0225 0341 bring     0289 0441 category 
+0034 0042 affair    0098 0142 arrange   0162 0242 begin     0226 0342 brisk     0290 0442 cattle   
+0035 0043 afford    0099 0143 arrest    0163 0243 behave    0227 0343 broccoli  0291 0443 caught   
+0036 0044 afraid    0100 0144 arrive    0164 0244 behind    0228 0344 broken    0292 0444 cause    
+0037 0045 again     0101 0145 arrow     0165 0245 believe   0229 0345 bronze    0293 0445 caution  
+0038 0046 age       0102 0146 art       0166 0246 below     0230 0346 broom     0294 0446 cave     
+0039 0047 agent     0103 0147 artefact  0167 0247 belt      0231 0347 brother   0295 0447 ceiling  
+0040 0050 agree     0104 0150 artist    0168 0250 bench     0232 0350 brown     0296 0450 celery   
+0041 0051 ahead     0105 0151 artwork   0169 0251 benefit   0233 0351 brush     0297 0451 cement   
+0042 0052 aim       0106 0152 ask       0170 0252 best      0234 0352 bubble    0298 0452 census   
+0043 0053 air       0107 0153 aspect    0171 0253 betray    0235 0353 buddy     0299 0453 century  
+0044 0054 airport   0108 0154 assault   0172 0254 better    0236 0354 budget    0300 0454 cereal   
+0045 0055 aisle     0109 0155 asset     0173 0255 between   0237 0355 buffalo   0301 0455 certain  
+0046 0056 alarm     0110 0156 assist    0174 0256 beyond    0238 0356 build     0302 0456 chair    
+0047 0057 album     0111 0157 assume    0175 0257 bicycle   0239 0357 bulb      0303 0457 chalk    
+0048 0060 alcohol   0112 0160 asthma    0176 0260 bid       0240 0360 bulk      0304 0460 champion 
+0049 0061 alert     0113 0161 athlete   0177 0261 bike      0241 0361 bullet    0305 0461 change   
+0050 0062 alien     0114 0162 atom      0178 0262 bind      0242 0362 bundle    0306 0462 chaos    
+0051 0063 all       0115 0163 attack    0179 0263 biology   0243 0363 bunker    0307 0463 chapter  
+0052 0064 alley     0116 0164 attend    0180 0264 bird      0244 0364 burden    0308 0464 charge   
+0053 0065 allow     0117 0165 attitude  0181 0265 birth     0245 0365 burger    0309 0465 chase    
+0054 0066 almost    0118 0166 attract   0182 0266 bitter    0246 0366 burst     0310 0466 chat     
+0055 0067 alone     0119 0167 auction   0183 0267 black     0247 0367 bus       0311 0467 cheap    
+0056 0070 alpha     0120 0170 audit     0184 0270 blade     0248 0370 business  0312 0470 check    
+0057 0071 already   0121 0171 august    0185 0271 blame     0249 0371 busy      0313 0471 cheese   
+0058 0072 also      0122 0172 aunt      0186 0272 blanket   0250 0372 butter    0314 0472 chef     
+0059 0073 alter     0123 0173 author    0187 0273 blast     0251 0373 buyer     0315 0473 cherry   
+0060 0074 always    0124 0174 auto      0188 0274 bleak     0252 0374 buzz      0316 0474 chest    
+0061 0075 amateur   0125 0175 autumn    0189 0275 bless     0253 0375 cabbage   0317 0475 chicken  
+0062 0076 amazing   0126 0176 average   0190 0276 blind     0254 0376 cabin     0318 0476 chief    
+0063 0077 among     0127 0177 avocado   0191 0277 blood     0255 0377 cable     0319 0477 child    
 </pre>
-<pre>
-0064 040 amount
-0065 041 amused
-0066 042 analyst
-0067 043 anchor
-0068 044 ancient
-0069 045 anger
-0070 046 angle
-0071 047 angry
-0072 048 animal
-0073 049 ankle
-0074 04A announce
-0075 04B annual
-0076 04C another
-0077 04D answer
-0078 04E antenna
-0079 04F antique
-0080 050 anxiety
-0081 051 any
-0082 052 apart
-0083 053 apology
-0084 054 appear
-0085 055 apple
-0086 056 approve
-0087 057 april
-0088 058 arch
-0089 059 arctic
-0090 05A area
-0091 05B arena
-0092 05C argue
-0093 05D arm
-0094 05E armed
-0095 05F armor
-0096 060 army
-0097 061 around
-0098 062 arrange
-0099 063 arrest
-0100 064 arrive
-0101 065 arrow
-0102 066 art
-0103 067 artefact
-0104 068 artist
-0105 069 artwork
-0106 06A ask
-0107 06B aspect
-0108 06C assault
-0109 06D asset
-0110 06E assist
-0111 06F assume
-0112 070 asthma
-0113 071 athlete
-0114 072 atom
-0115 073 attack
-0116 074 attend
-0117 075 attitude
-0118 076 attract
-0119 077 auction
-0120 078 audit
-0121 079 august
-0122 07A aunt
-0123 07B author
-0124 07C auto
-0125 07D autumn
-0126 07E average
-0127 07F avocado
+<div class="pagenum">1/7</div></div>
+<div class="page"><h1>BIP 39 Wordlist</h1><pre>
+DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD     
+==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ======== 
+0320 0500 chimney   0384 0600 copy      0448 0700 day       0512 1000 divorce   0576 1100 elite    
+0321 0501 choice    0385 0601 coral     0449 0701 deal      0513 1001 dizzy     0577 1101 else     
+0322 0502 choose    0386 0602 core      0450 0702 debate    0514 1002 doctor    0578 1102 embark   
+0323 0503 chronic   0387 0603 corn      0451 0703 debris    0515 1003 document  0579 1103 embody   
+0324 0504 chuckle   0388 0604 correct   0452 0704 decade    0516 1004 dog       0580 1104 embrace  
+0325 0505 chunk     0389 0605 cost      0453 0705 december  0517 1005 doll      0581 1105 emerge   
+0326 0506 churn     0390 0606 cotton    0454 0706 decide    0518 1006 dolphin   0582 1106 emotion  
+0327 0507 cigar     0391 0607 couch     0455 0707 decline   0519 1007 domain    0583 1107 employ   
+0328 0510 cinnamon  0392 0610 country   0456 0710 decorate  0520 1010 donate    0584 1110 empower  
+0329 0511 circle    0393 0611 couple    0457 0711 decrease  0521 1011 donkey    0585 1111 empty    
+0330 0512 citizen   0394 0612 course    0458 0712 deer      0522 1012 donor     0586 1112 enable   
+0331 0513 city      0395 0613 cousin    0459 0713 defense   0523 1013 door      0587 1113 enact    
+0332 0514 civil     0396 0614 cover     0460 0714 define    0524 1014 dose      0588 1114 end      
+0333 0515 claim     0397 0615 coyote    0461 0715 defy      0525 1015 double    0589 1115 endless  
+0334 0516 clap      0398 0616 crack     0462 0716 degree    0526 1016 dove      0590 1116 endorse  
+0335 0517 clarify   0399 0617 cradle    0463 0717 delay     0527 1017 draft     0591 1117 enemy    
+0336 0520 claw      0400 0620 craft     0464 0720 deliver   0528 1020 dragon    0592 1120 energy   
+0337 0521 clay      0401 0621 cram      0465 0721 demand    0529 1021 drama     0593 1121 enforce  
+0338 0522 clean     0402 0622 crane     0466 0722 demise    0530 1022 drastic   0594 1122 engage   
+0339 0523 clerk     0403 0623 crash     0467 0723 denial    0531 1023 draw      0595 1123 engine   
+0340 0524 clever    0404 0624 crater    0468 0724 dentist   0532 1024 dream     0596 1124 enhance  
+0341 0525 click     0405 0625 crawl     0469 0725 deny      0533 1025 dress     0597 1125 enjoy    
+0342 0526 client    0406 0626 crazy     0470 0726 depart    0534 1026 drift     0598 1126 enlist   
+0343 0527 cliff     0407 0627 cream     0471 0727 depend    0535 1027 drill     0599 1127 enough   
+0344 0530 climb     0408 0630 credit    0472 0730 deposit   0536 1030 drink     0600 1130 enrich   
+0345 0531 clinic    0409 0631 creek     0473 0731 depth     0537 1031 drip      0601 1131 enroll   
+0346 0532 clip      0410 0632 crew      0474 0732 deputy    0538 1032 drive     0602 1132 ensure   
+0347 0533 clock     0411 0633 cricket   0475 0733 derive    0539 1033 drop      0603 1133 enter    
+0348 0534 clog      0412 0634 crime     0476 0734 describe  0540 1034 drum      0604 1134 entire   
+0349 0535 close     0413 0635 crisp     0477 0735 desert    0541 1035 dry       0605 1135 entry    
+0350 0536 cloth     0414 0636 critic    0478 0736 design    0542 1036 duck      0606 1136 envelope 
+0351 0537 cloud     0415 0637 crop      0479 0737 desk      0543 1037 dumb      0607 1137 episode  
+0352 0540 clown     0416 0640 cross     0480 0740 despair   0544 1040 dune      0608 1140 equal    
+0353 0541 club      0417 0641 crouch    0481 0741 destroy   0545 1041 during    0609 1141 equip    
+0354 0542 clump     0418 0642 crowd     0482 0742 detail    0546 1042 dust      0610 1142 era      
+0355 0543 cluster   0419 0643 crucial   0483 0743 detect    0547 1043 dutch     0611 1143 erase    
+0356 0544 clutch    0420 0644 cruel     0484 0744 develop   0548 1044 duty      0612 1144 erode    
+0357 0545 coach     0421 0645 cruise    0485 0745 device    0549 1045 dwarf     0613 1145 erosion  
+0358 0546 coast     0422 0646 crumble   0486 0746 devote    0550 1046 dynamic   0614 1146 error    
+0359 0547 coconut   0423 0647 crunch    0487 0747 diagram   0551 1047 eager     0615 1147 erupt    
+0360 0550 code      0424 0650 crush     0488 0750 dial      0552 1050 eagle     0616 1150 escape   
+0361 0551 coffee    0425 0651 cry       0489 0751 diamond   0553 1051 early     0617 1151 essay    
+0362 0552 coil      0426 0652 crystal   0490 0752 diary     0554 1052 earn      0618 1152 essence  
+0363 0553 coin      0427 0653 cube      0491 0753 dice      0555 1053 earth     0619 1153 estate   
+0364 0554 collect   0428 0654 culture   0492 0754 diesel    0556 1054 easily    0620 1154 eternal  
+0365 0555 color     0429 0655 cup       0493 0755 diet      0557 1055 east      0621 1155 ethics   
+0366 0556 column    0430 0656 cupboard  0494 0756 differ    0558 1056 easy      0622 1156 evidence 
+0367 0557 combine   0431 0657 curious   0495 0757 digital   0559 1057 echo      0623 1157 evil     
+0368 0560 come      0432 0660 current   0496 0760 dignity   0560 1060 ecology   0624 1160 evoke    
+0369 0561 comfort   0433 0661 curtain   0497 0761 dilemma   0561 1061 economy   0625 1161 evolve   
+0370 0562 comic     0434 0662 curve     0498 0762 dinner    0562 1062 edge      0626 1162 exact    
+0371 0563 common    0435 0663 cushion   0499 0763 dinosaur  0563 1063 edit      0627 1163 example  
+0372 0564 company   0436 0664 custom    0500 0764 direct    0564 1064 educate   0628 1164 excess   
+0373 0565 concert   0437 0665 cute      0501 0765 dirt      0565 1065 effort    0629 1165 exchange 
+0374 0566 conduct   0438 0666 cycle     0502 0766 disagree  0566 1066 egg       0630 1166 excite   
+0375 0567 confirm   0439 0667 dad       0503 0767 discover  0567 1067 eight     0631 1167 exclude  
+0376 0570 congress  0440 0670 damage    0504 0770 disease   0568 1070 either    0632 1170 excuse   
+0377 0571 connect   0441 0671 damp      0505 0771 dish      0569 1071 elbow     0633 1171 execute  
+0378 0572 consider  0442 0672 dance     0506 0772 dismiss   0570 1072 elder     0634 1172 exercise 
+0379 0573 control   0443 0673 danger    0507 0773 disorder  0571 1073 electric  0635 1173 exhaust  
+0380 0574 convince  0444 0674 daring    0508 0774 display   0572 1074 elegant   0636 1174 exhibit  
+0381 0575 cook      0445 0675 dash      0509 0775 distance  0573 1075 element   0637 1175 exile    
+0382 0576 cool      0446 0676 daughter  0510 0776 divert    0574 1076 elephant  0638 1176 exist    
+0383 0577 copper    0447 0677 dawn      0511 0777 divide    0575 1077 elevator  0639 1177 exit     
 </pre>
-<pre>
-0128 080 avoid
-0129 081 awake
-0130 082 aware
-0131 083 away
-0132 084 awesome
-0133 085 awful
-0134 086 awkward
-0135 087 axis
-0136 088 baby
-0137 089 bachelor
-0138 08A bacon
-0139 08B badge
-0140 08C bag
-0141 08D balance
-0142 08E balcony
-0143 08F ball
-0144 090 bamboo
-0145 091 banana
-0146 092 banner
-0147 093 bar
-0148 094 barely
-0149 095 bargain
-0150 096 barrel
-0151 097 base
-0152 098 basic
-0153 099 basket
-0154 09A battle
-0155 09B beach
-0156 09C bean
-0157 09D beauty
-0158 09E because
-0159 09F become
-0160 0A0 beef
-0161 0A1 before
-0162 0A2 begin
-0163 0A3 behave
-0164 0A4 behind
-0165 0A5 believe
-0166 0A6 below
-0167 0A7 belt
-0168 0A8 bench
-0169 0A9 benefit
-0170 0AA best
-0171 0AB betray
-0172 0AC better
-0173 0AD between
-0174 0AE beyond
-0175 0AF bicycle
-0176 0B0 bid
-0177 0B1 bike
-0178 0B2 bind
-0179 0B3 biology
-0180 0B4 bird
-0181 0B5 birth
-0182 0B6 bitter
-0183 0B7 black
-0184 0B8 blade
-0185 0B9 blame
-0186 0BA blanket
-0187 0BB blast
-0188 0BC bleak
-0189 0BD bless
-0190 0BE blind
-0191 0BF blood
+<div class="pagenum">2/7</div></div>
+<div class="page"><h1>BIP 39 Wordlist</h1><pre>
+DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD     
+==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ======== 
+0640 1200 exotic    0704 1300 fix       0768 1400 gas       0832 1500 gym       0896 1600 hybrid   
+0641 1201 expand    0705 1301 flag      0769 1401 gasp      0833 1501 habit     0897 1601 ice      
+0642 1202 expect    0706 1302 flame     0770 1402 gate      0834 1502 hair      0898 1602 icon     
+0643 1203 expire    0707 1303 flash     0771 1403 gather    0835 1503 half      0899 1603 idea     
+0644 1204 explain   0708 1304 flat      0772 1404 gauge     0836 1504 hammer    0900 1604 identify 
+0645 1205 expose    0709 1305 flavor    0773 1405 gaze      0837 1505 hamster   0901 1605 idle     
+0646 1206 express   0710 1306 flee      0774 1406 general   0838 1506 hand      0902 1606 ignore   
+0647 1207 extend    0711 1307 flight    0775 1407 genius    0839 1507 happy     0903 1607 ill      
+0648 1210 extra     0712 1310 flip      0776 1410 genre     0840 1510 harbor    0904 1610 illegal  
+0649 1211 eye       0713 1311 float     0777 1411 gentle    0841 1511 hard      0905 1611 illness  
+0650 1212 eyebrow   0714 1312 flock     0778 1412 genuine   0842 1512 harsh     0906 1612 image    
+0651 1213 fabric    0715 1313 floor     0779 1413 gesture   0843 1513 harvest   0907 1613 imitate  
+0652 1214 face      0716 1314 flower    0780 1414 ghost     0844 1514 hat       0908 1614 immense  
+0653 1215 faculty   0717 1315 fluid     0781 1415 giant     0845 1515 have      0909 1615 immune   
+0654 1216 fade      0718 1316 flush     0782 1416 gift      0846 1516 hawk      0910 1616 impact   
+0655 1217 faint     0719 1317 fly       0783 1417 giggle    0847 1517 hazard    0911 1617 impose   
+0656 1220 faith     0720 1320 foam      0784 1420 ginger    0848 1520 head      0912 1620 improve  
+0657 1221 fall      0721 1321 focus     0785 1421 giraffe   0849 1521 health    0913 1621 impulse  
+0658 1222 false     0722 1322 fog       0786 1422 girl      0850 1522 heart     0914 1622 inch     
+0659 1223 fame      0723 1323 foil      0787 1423 give      0851 1523 heavy     0915 1623 include  
+0660 1224 family    0724 1324 fold      0788 1424 glad      0852 1524 hedgehog  0916 1624 income   
+0661 1225 famous    0725 1325 follow    0789 1425 glance    0853 1525 height    0917 1625 increase 
+0662 1226 fan       0726 1326 food      0790 1426 glare     0854 1526 hello     0918 1626 index    
+0663 1227 fancy     0727 1327 foot      0791 1427 glass     0855 1527 helmet    0919 1627 indicate 
+0664 1230 fantasy   0728 1330 force     0792 1430 glide     0856 1530 help      0920 1630 indoor   
+0665 1231 farm      0729 1331 forest    0793 1431 glimpse   0857 1531 hen       0921 1631 industry 
+0666 1232 fashion   0730 1332 forget    0794 1432 globe     0858 1532 hero      0922 1632 infant   
+0667 1233 fat       0731 1333 fork      0795 1433 gloom     0859 1533 hidden    0923 1633 inflict  
+0668 1234 fatal     0732 1334 fortune   0796 1434 glory     0860 1534 high      0924 1634 inform   
+0669 1235 father    0733 1335 forum     0797 1435 glove     0861 1535 hill      0925 1635 inhale   
+0670 1236 fatigue   0734 1336 forward   0798 1436 glow      0862 1536 hint      0926 1636 inherit  
+0671 1237 fault     0735 1337 fossil    0799 1437 glue      0863 1537 hip       0927 1637 initial  
+0672 1240 favorite  0736 1340 foster    0800 1440 goat      0864 1540 hire      0928 1640 inject   
+0673 1241 feature   0737 1341 found     0801 1441 goddess   0865 1541 history   0929 1641 injury   
+0674 1242 february  0738 1342 fox       0802 1442 gold      0866 1542 hobby     0930 1642 inmate   
+0675 1243 federal   0739 1343 fragile   0803 1443 good      0867 1543 hockey    0931 1643 inner    
+0676 1244 fee       0740 1344 frame     0804 1444 goose     0868 1544 hold      0932 1644 innocent 
+0677 1245 feed      0741 1345 frequent  0805 1445 gorilla   0869 1545 hole      0933 1645 input    
+0678 1246 feel      0742 1346 fresh     0806 1446 gospel    0870 1546 holiday   0934 1646 inquiry  
+0679 1247 female    0743 1347 friend    0807 1447 gossip    0871 1547 hollow    0935 1647 insane   
+0680 1250 fence     0744 1350 fringe    0808 1450 govern    0872 1550 home      0936 1650 insect   
+0681 1251 festival  0745 1351 frog      0809 1451 gown      0873 1551 honey     0937 1651 inside   
+0682 1252 fetch     0746 1352 front     0810 1452 grab      0874 1552 hood      0938 1652 inspire  
+0683 1253 fever     0747 1353 frost     0811 1453 grace     0875 1553 hope      0939 1653 install  
+0684 1254 few       0748 1354 frown     0812 1454 grain     0876 1554 horn      0940 1654 intact   
+0685 1255 fiber     0749 1355 frozen    0813 1455 grant     0877 1555 horror    0941 1655 interest 
+0686 1256 fiction   0750 1356 fruit     0814 1456 grape     0878 1556 horse     0942 1656 into     
+0687 1257 field     0751 1357 fuel      0815 1457 grass     0879 1557 hospital  0943 1657 invest   
+0688 1260 figure    0752 1360 fun       0816 1460 gravity   0880 1560 host      0944 1660 invite   
+0689 1261 file      0753 1361 funny     0817 1461 great     0881 1561 hotel     0945 1661 involve  
+0690 1262 film      0754 1362 furnace   0818 1462 green     0882 1562 hour      0946 1662 iron     
+0691 1263 filter    0755 1363 fury      0819 1463 grid      0883 1563 hover     0947 1663 island   
+0692 1264 final     0756 1364 future    0820 1464 grief     0884 1564 hub       0948 1664 isolate  
+0693 1265 find      0757 1365 gadget    0821 1465 grit      0885 1565 huge      0949 1665 issue    
+0694 1266 fine      0758 1366 gain      0822 1466 grocery   0886 1566 human     0950 1666 item     
+0695 1267 finger    0759 1367 galaxy    0823 1467 group     0887 1567 humble    0951 1667 ivory    
+0696 1270 finish    0760 1370 gallery   0824 1470 grow      0888 1570 humor     0952 1670 jacket   
+0697 1271 fire      0761 1371 game      0825 1471 grunt     0889 1571 hundred   0953 1671 jaguar   
+0698 1272 firm      0762 1372 gap       0826 1472 guard     0890 1572 hungry    0954 1672 jar      
+0699 1273 first     0763 1373 garage    0827 1473 guess     0891 1573 hunt      0955 1673 jazz     
+0700 1274 fiscal    0764 1374 garbage   0828 1474 guide     0892 1574 hurdle    0956 1674 jealous  
+0701 1275 fish      0765 1375 garden    0829 1475 guilt     0893 1575 hurry     0957 1675 jeans    
+0702 1276 fit       0766 1376 garlic    0830 1476 guitar    0894 1576 hurt      0958 1676 jelly    
+0703 1277 fitness   0767 1377 garment   0831 1477 gun       0895 1577 husband   0959 1677 jewel    
 </pre>
-<pre>
-0192 0C0 blossom
-0193 0C1 blouse
-0194 0C2 blue
-0195 0C3 blur
-0196 0C4 blush
-0197 0C5 board
-0198 0C6 boat
-0199 0C7 body
-0200 0C8 boil
-0201 0C9 bomb
-0202 0CA bone
-0203 0CB bonus
-0204 0CC book
-0205 0CD boost
-0206 0CE border
-0207 0CF boring
-0208 0D0 borrow
-0209 0D1 boss
-0210 0D2 bottom
-0211 0D3 bounce
-0212 0D4 box
-0213 0D5 boy
-0214 0D6 bracket
-0215 0D7 brain
-0216 0D8 brand
-0217 0D9 brass
-0218 0DA brave
-0219 0DB bread
-0220 0DC breeze
-0221 0DD brick
-0222 0DE bridge
-0223 0DF brief
-0224 0E0 bright
-0225 0E1 bring
-0226 0E2 brisk
-0227 0E3 broccoli
-0228 0E4 broken
-0229 0E5 bronze
-0230 0E6 broom
-0231 0E7 brother
-0232 0E8 brown
-0233 0E9 brush
-0234 0EA bubble
-0235 0EB buddy
-0236 0EC budget
-0237 0ED buffalo
-0238 0EE build
-0239 0EF bulb
-0240 0F0 bulk
-0241 0F1 bullet
-0242 0F2 bundle
-0243 0F3 bunker
-0244 0F4 burden
-0245 0F5 burger
-0246 0F6 burst
-0247 0F7 bus
-0248 0F8 business
-0249 0F9 busy
-0250 0FA butter
-0251 0FB buyer
-0252 0FC buzz
-0253 0FD cabbage
-0254 0FE cabin
-0255 0FF cable
+<div class="pagenum">3/7</div></div>
+<div class="page"><h1>BIP 39 Wordlist</h1><pre>
+DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD     
+==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ======== 
+0960 1700 job       1024 2000 length    1088 2100 marine    1152 2200 mosquito  1216 2300 object   
+0961 1701 join      1025 2001 lens      1089 2101 market    1153 2201 mother    1217 2301 oblige   
+0962 1702 joke      1026 2002 leopard   1090 2102 marriage  1154 2202 motion    1218 2302 obscure  
+0963 1703 journey   1027 2003 lesson    1091 2103 mask      1155 2203 motor     1219 2303 observe  
+0964 1704 joy       1028 2004 letter    1092 2104 mass      1156 2204 mountain  1220 2304 obtain   
+0965 1705 judge     1029 2005 level     1093 2105 master    1157 2205 mouse     1221 2305 obvious  
+0966 1706 juice     1030 2006 liar      1094 2106 match     1158 2206 move      1222 2306 occur    
+0967 1707 jump      1031 2007 liberty   1095 2107 material  1159 2207 movie     1223 2307 ocean    
+0968 1710 jungle    1032 2010 library   1096 2110 math      1160 2210 much      1224 2310 october  
+0969 1711 junior    1033 2011 license   1097 2111 matrix    1161 2211 muffin    1225 2311 odor     
+0970 1712 junk      1034 2012 life      1098 2112 matter    1162 2212 mule      1226 2312 off      
+0971 1713 just      1035 2013 lift      1099 2113 maximum   1163 2213 multiply  1227 2313 offer    
+0972 1714 kangaroo  1036 2014 light     1100 2114 maze      1164 2214 muscle    1228 2314 office   
+0973 1715 keen      1037 2015 like      1101 2115 meadow    1165 2215 museum    1229 2315 often    
+0974 1716 keep      1038 2016 limb      1102 2116 mean      1166 2216 mushroom  1230 2316 oil      
+0975 1717 ketchup   1039 2017 limit     1103 2117 measure   1167 2217 music     1231 2317 okay     
+0976 1720 key       1040 2020 link      1104 2120 meat      1168 2220 must      1232 2320 old      
+0977 1721 kick      1041 2021 lion      1105 2121 mechanic  1169 2221 mutual    1233 2321 olive    
+0978 1722 kid       1042 2022 liquid    1106 2122 medal     1170 2222 myself    1234 2322 olympic  
+0979 1723 kidney    1043 2023 list      1107 2123 media     1171 2223 mystery   1235 2323 omit     
+0980 1724 kind      1044 2024 little    1108 2124 melody    1172 2224 myth      1236 2324 once     
+0981 1725 kingdom   1045 2025 live      1109 2125 melt      1173 2225 naive     1237 2325 one      
+0982 1726 kiss      1046 2026 lizard    1110 2126 member    1174 2226 name      1238 2326 onion    
+0983 1727 kit       1047 2027 load      1111 2127 memory    1175 2227 napkin    1239 2327 online   
+0984 1730 kitchen   1048 2030 loan      1112 2130 mention   1176 2230 narrow    1240 2330 only     
+0985 1731 kite      1049 2031 lobster   1113 2131 menu      1177 2231 nasty     1241 2331 open     
+0986 1732 kitten    1050 2032 local     1114 2132 mercy     1178 2232 nation    1242 2332 opera    
+0987 1733 kiwi      1051 2033 lock      1115 2133 merge     1179 2233 nature    1243 2333 opinion  
+0988 1734 knee      1052 2034 logic     1116 2134 merit     1180 2234 near      1244 2334 oppose   
+0989 1735 knife     1053 2035 lonely    1117 2135 merry     1181 2235 neck      1245 2335 option   
+0990 1736 knock     1054 2036 long      1118 2136 mesh      1182 2236 need      1246 2336 orange   
+0991 1737 know      1055 2037 loop      1119 2137 message   1183 2237 negative  1247 2337 orbit    
+0992 1740 lab       1056 2040 lottery   1120 2140 metal     1184 2240 neglect   1248 2340 orchard  
+0993 1741 label     1057 2041 loud      1121 2141 method    1185 2241 neither   1249 2341 order    
+0994 1742 labor     1058 2042 lounge    1122 2142 middle    1186 2242 nephew    1250 2342 ordinary 
+0995 1743 ladder    1059 2043 love      1123 2143 midnight  1187 2243 nerve     1251 2343 organ    
+0996 1744 lady      1060 2044 loyal     1124 2144 milk      1188 2244 nest      1252 2344 orient   
+0997 1745 lake      1061 2045 lucky     1125 2145 million   1189 2245 net       1253 2345 original 
+0998 1746 lamp      1062 2046 luggage   1126 2146 mimic     1190 2246 network   1254 2346 orphan   
+0999 1747 language  1063 2047 lumber    1127 2147 mind      1191 2247 neutral   1255 2347 ostrich  
+1000 1750 laptop    1064 2050 lunar     1128 2150 minimum   1192 2250 never     1256 2350 other    
+1001 1751 large     1065 2051 lunch     1129 2151 minor     1193 2251 news      1257 2351 outdoor  
+1002 1752 later     1066 2052 luxury    1130 2152 minute    1194 2252 next      1258 2352 outer    
+1003 1753 latin     1067 2053 lyrics    1131 2153 miracle   1195 2253 nice      1259 2353 output   
+1004 1754 laugh     1068 2054 machine   1132 2154 mirror    1196 2254 night     1260 2354 outside  
+1005 1755 laundry   1069 2055 mad       1133 2155 misery    1197 2255 noble     1261 2355 oval     
+1006 1756 lava      1070 2056 magic     1134 2156 miss      1198 2256 noise     1262 2356 oven     
+1007 1757 law       1071 2057 magnet    1135 2157 mistake   1199 2257 nominee   1263 2357 over     
+1008 1760 lawn      1072 2060 maid      1136 2160 mix       1200 2260 noodle    1264 2360 own      
+1009 1761 lawsuit   1073 2061 mail      1137 2161 mixed     1201 2261 normal    1265 2361 owner    
+1010 1762 layer     1074 2062 main      1138 2162 mixture   1202 2262 north     1266 2362 oxygen   
+1011 1763 lazy      1075 2063 major     1139 2163 mobile    1203 2263 nose      1267 2363 oyster   
+1012 1764 leader    1076 2064 make      1140 2164 model     1204 2264 notable   1268 2364 ozone    
+1013 1765 leaf      1077 2065 mammal    1141 2165 modify    1205 2265 note      1269 2365 pact     
+1014 1766 learn     1078 2066 man       1142 2166 mom       1206 2266 nothing   1270 2366 paddle   
+1015 1767 leave     1079 2067 manage    1143 2167 moment    1207 2267 notice    1271 2367 page     
+1016 1770 lecture   1080 2070 mandate   1144 2170 monitor   1208 2270 novel     1272 2370 pair     
+1017 1771 left      1081 2071 mango     1145 2171 monkey    1209 2271 now       1273 2371 palace   
+1018 1772 leg       1082 2072 mansion   1146 2172 monster   1210 2272 nuclear   1274 2372 palm     
+1019 1773 legal     1083 2073 manual    1147 2173 month     1211 2273 number    1275 2373 panda    
+1020 1774 legend    1084 2074 maple     1148 2174 moon      1212 2274 nurse     1276 2374 panel    
+1021 1775 leisure   1085 2075 marble    1149 2175 moral     1213 2275 nut       1277 2375 panic    
+1022 1776 lemon     1086 2076 march     1150 2176 more      1214 2276 oak       1278 2376 panther  
+1023 1777 lend      1087 2077 margin    1151 2177 morning   1215 2277 obey      1279 2377 paper    
 </pre>
-<pre>
-0256 100 cactus
-0257 101 cage
-0258 102 cake
-0259 103 call
-0260 104 calm
-0261 105 camera
-0262 106 camp
-0263 107 can
-0264 108 canal
-0265 109 cancel
-0266 10A candy
-0267 10B cannon
-0268 10C canoe
-0269 10D canvas
-0270 10E canyon
-0271 10F capable
-0272 110 capital
-0273 111 captain
-0274 112 car
-0275 113 carbon
-0276 114 card
-0277 115 cargo
-0278 116 carpet
-0279 117 carry
-0280 118 cart
-0281 119 case
-0282 11A cash
-0283 11B casino
-0284 11C castle
-0285 11D casual
-0286 11E cat
-0287 11F catalog
-0288 120 catch
-0289 121 category
-0290 122 cattle
-0291 123 caught
-0292 124 cause
-0293 125 caution
-0294 126 cave
-0295 127 ceiling
-0296 128 celery
-0297 129 cement
-0298 12A census
-0299 12B century
-0300 12C cereal
-0301 12D certain
-0302 12E chair
-0303 12F chalk
-0304 130 champion
-0305 131 change
-0306 132 chaos
-0307 133 chapter
-0308 134 charge
-0309 135 chase
-0310 136 chat
-0311 137 cheap
-0312 138 check
-0313 139 cheese
-0314 13A chef
-0315 13B cherry
-0316 13C chest
-0317 13D chicken
-0318 13E chief
-0319 13F child
+<div class="pagenum">4/7</div></div>
+<div class="page"><h1>BIP 39 Wordlist</h1><pre>
+DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD     
+==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ======== 
+1280 2400 parade    1344 2500 pool      1408 2600 quote     1472 2700 retreat   1536 3000 scale    
+1281 2401 parent    1345 2501 popular   1409 2601 rabbit    1473 2701 return    1537 3001 scan     
+1282 2402 park      1346 2502 portion   1410 2602 raccoon   1474 2702 reunion   1538 3002 scare    
+1283 2403 parrot    1347 2503 position  1411 2603 race      1475 2703 reveal    1539 3003 scatter  
+1284 2404 party     1348 2504 possible  1412 2604 rack      1476 2704 review    1540 3004 scene    
+1285 2405 pass      1349 2505 post      1413 2605 radar     1477 2705 reward    1541 3005 scheme   
+1286 2406 patch     1350 2506 potato    1414 2606 radio     1478 2706 rhythm    1542 3006 school   
+1287 2407 path      1351 2507 pottery   1415 2607 rail      1479 2707 rib       1543 3007 science  
+1288 2410 patient   1352 2510 poverty   1416 2610 rain      1480 2710 ribbon    1544 3010 scissors 
+1289 2411 patrol    1353 2511 powder    1417 2611 raise     1481 2711 rice      1545 3011 scorpion 
+1290 2412 pattern   1354 2512 power     1418 2612 rally     1482 2712 rich      1546 3012 scout    
+1291 2413 pause     1355 2513 practice  1419 2613 ramp      1483 2713 ride      1547 3013 scrap    
+1292 2414 pave      1356 2514 praise    1420 2614 ranch     1484 2714 ridge     1548 3014 screen   
+1293 2415 payment   1357 2515 predict   1421 2615 random    1485 2715 rifle     1549 3015 script   
+1294 2416 peace     1358 2516 prefer    1422 2616 range     1486 2716 right     1550 3016 scrub    
+1295 2417 peanut    1359 2517 prepare   1423 2617 rapid     1487 2717 rigid     1551 3017 sea      
+1296 2420 pear      1360 2520 present   1424 2620 rare      1488 2720 ring      1552 3020 search   
+1297 2421 peasant   1361 2521 pretty    1425 2621 rate      1489 2721 riot      1553 3021 season   
+1298 2422 pelican   1362 2522 prevent   1426 2622 rather    1490 2722 ripple    1554 3022 seat     
+1299 2423 pen       1363 2523 price     1427 2623 raven     1491 2723 risk      1555 3023 second   
+1300 2424 penalty   1364 2524 pride     1428 2624 raw       1492 2724 ritual    1556 3024 secret   
+1301 2425 pencil    1365 2525 primary   1429 2625 razor     1493 2725 rival     1557 3025 section  
+1302 2426 people    1366 2526 print     1430 2626 ready     1494 2726 river     1558 3026 security 
+1303 2427 pepper    1367 2527 priority  1431 2627 real      1495 2727 road      1559 3027 seed     
+1304 2430 perfect   1368 2530 prison    1432 2630 reason    1496 2730 roast     1560 3030 seek     
+1305 2431 permit    1369 2531 private   1433 2631 rebel     1497 2731 robot     1561 3031 segment  
+1306 2432 person    1370 2532 prize     1434 2632 rebuild   1498 2732 robust    1562 3032 select   
+1307 2433 pet       1371 2533 problem   1435 2633 recall    1499 2733 rocket    1563 3033 sell     
+1308 2434 phone     1372 2534 process   1436 2634 receive   1500 2734 romance   1564 3034 seminar  
+1309 2435 photo     1373 2535 produce   1437 2635 recipe    1501 2735 roof      1565 3035 senior   
+1310 2436 phrase    1374 2536 profit    1438 2636 record    1502 2736 rookie    1566 3036 sense    
+1311 2437 physical  1375 2537 program   1439 2637 recycle   1503 2737 room      1567 3037 sentence 
+1312 2440 piano     1376 2540 project   1440 2640 reduce    1504 2740 rose      1568 3040 series   
+1313 2441 picnic    1377 2541 promote   1441 2641 reflect   1505 2741 rotate    1569 3041 service  
+1314 2442 picture   1378 2542 proof     1442 2642 reform    1506 2742 rough     1570 3042 session  
+1315 2443 piece     1379 2543 property  1443 2643 refuse    1507 2743 round     1571 3043 settle   
+1316 2444 pig       1380 2544 prosper   1444 2644 region    1508 2744 route     1572 3044 setup    
+1317 2445 pigeon    1381 2545 protect   1445 2645 regret    1509 2745 royal     1573 3045 seven    
+1318 2446 pill      1382 2546 proud     1446 2646 regular   1510 2746 rubber    1574 3046 shadow   
+1319 2447 pilot     1383 2547 provide   1447 2647 reject    1511 2747 rude      1575 3047 shaft    
+1320 2450 pink      1384 2550 public    1448 2650 relax     1512 2750 rug       1576 3050 shallow  
+1321 2451 pioneer   1385 2551 pudding   1449 2651 release   1513 2751 rule      1577 3051 share    
+1322 2452 pipe      1386 2552 pull      1450 2652 relief    1514 2752 run       1578 3052 shed     
+1323 2453 pistol    1387 2553 pulp      1451 2653 rely      1515 2753 runway    1579 3053 shell    
+1324 2454 pitch     1388 2554 pulse     1452 2654 remain    1516 2754 rural     1580 3054 sheriff  
+1325 2455 pizza     1389 2555 pumpkin   1453 2655 remember  1517 2755 sad       1581 3055 shield   
+1326 2456 place     1390 2556 punch     1454 2656 remind    1518 2756 saddle    1582 3056 shift    
+1327 2457 planet    1391 2557 pupil     1455 2657 remove    1519 2757 sadness   1583 3057 shine    
+1328 2460 plastic   1392 2560 puppy     1456 2660 render    1520 2760 safe      1584 3060 ship     
+1329 2461 plate     1393 2561 purchase  1457 2661 renew     1521 2761 sail      1585 3061 shiver   
+1330 2462 play      1394 2562 purity    1458 2662 rent      1522 2762 salad     1586 3062 shock    
+1331 2463 please    1395 2563 purpose   1459 2663 reopen    1523 2763 salmon    1587 3063 shoe     
+1332 2464 pledge    1396 2564 purse     1460 2664 repair    1524 2764 salon     1588 3064 shoot    
+1333 2465 pluck     1397 2565 push      1461 2665 repeat    1525 2765 salt      1589 3065 shop     
+1334 2466 plug      1398 2566 put       1462 2666 replace   1526 2766 salute    1590 3066 short    
+1335 2467 plunge    1399 2567 puzzle    1463 2667 report    1527 2767 same      1591 3067 shoulder 
+1336 2470 poem      1400 2570 pyramid   1464 2670 require   1528 2770 sample    1592 3070 shove    
+1337 2471 poet      1401 2571 quality   1465 2671 rescue    1529 2771 sand      1593 3071 shrimp   
+1338 2472 point     1402 2572 quantum   1466 2672 resemble  1530 2772 satisfy   1594 3072 shrug    
+1339 2473 polar     1403 2573 quarter   1467 2673 resist    1531 2773 satoshi   1595 3073 shuffle  
+1340 2474 pole      1404 2574 question  1468 2674 resource  1532 2774 sauce     1596 3074 shy      
+1341 2475 police    1405 2575 quick     1469 2675 response  1533 2775 sausage   1597 3075 sibling  
+1342 2476 pond      1406 2576 quit      1470 2676 result    1534 2776 save      1598 3076 sick     
+1343 2477 pony      1407 2577 quiz      1471 2677 retire    1535 2777 say       1599 3077 side     
 </pre>
-<pre>
-0320 140 chimney
-0321 141 choice
-0322 142 choose
-0323 143 chronic
-0324 144 chuckle
-0325 145 chunk
-0326 146 churn
-0327 147 cigar
-0328 148 cinnamon
-0329 149 circle
-0330 14A citizen
-0331 14B city
-0332 14C civil
-0333 14D claim
-0334 14E clap
-0335 14F clarify
-0336 150 claw
-0337 151 clay
-0338 152 clean
-0339 153 clerk
-0340 154 clever
-0341 155 click
-0342 156 client
-0343 157 cliff
-0344 158 climb
-0345 159 clinic
-0346 15A clip
-0347 15B clock
-0348 15C clog
-0349 15D close
-0350 15E cloth
-0351 15F cloud
-0352 160 clown
-0353 161 club
-0354 162 clump
-0355 163 cluster
-0356 164 clutch
-0357 165 coach
-0358 166 coast
-0359 167 coconut
-0360 168 code
-0361 169 coffee
-0362 16A coil
-0363 16B coin
-0364 16C collect
-0365 16D color
-0366 16E column
-0367 16F combine
-0368 170 come
-0369 171 comfort
-0370 172 comic
-0371 173 common
-0372 174 company
-0373 175 concert
-0374 176 conduct
-0375 177 confirm
-0376 178 congress
-0377 179 connect
-0378 17A consider
-0379 17B control
-0380 17C convince
-0381 17D cook
-0382 17E cool
-0383 17F copper
+<div class="pagenum">5/7</div></div>
+<div class="page"><h1>BIP 39 Wordlist</h1><pre>
+DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD      DECI OCTA WORD     
+==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ========  ==== ==== ======== 
+1600 3100 siege     1664 3200 source    1728 3300 submit    1792 3400 theme     1856 3500 trend    
+1601 3101 sight     1665 3201 south     1729 3301 subway    1793 3401 then      1857 3501 trial    
+1602 3102 sign      1666 3202 space     1730 3302 success   1794 3402 theory    1858 3502 tribe    
+1603 3103 silent    1667 3203 spare     1731 3303 such      1795 3403 there     1859 3503 trick    
+1604 3104 silk      1668 3204 spatial   1732 3304 sudden    1796 3404 they      1860 3504 trigger  
+1605 3105 silly     1669 3205 spawn     1733 3305 suffer    1797 3405 thing     1861 3505 trim     
+1606 3106 silver    1670 3206 speak     1734 3306 sugar     1798 3406 this      1862 3506 trip     
+1607 3107 similar   1671 3207 special   1735 3307 suggest   1799 3407 thought   1863 3507 trophy   
+1608 3110 simple    1672 3210 speed     1736 3310 suit      1800 3410 three     1864 3510 trouble  
+1609 3111 since     1673 3211 spell     1737 3311 summer    1801 3411 thrive    1865 3511 truck    
+1610 3112 sing      1674 3212 spend     1738 3312 sun       1802 3412 throw     1866 3512 true     
+1611 3113 siren     1675 3213 sphere    1739 3313 sunny     1803 3413 thumb     1867 3513 truly    
+1612 3114 sister    1676 3214 spice     1740 3314 sunset    1804 3414 thunder   1868 3514 trumpet  
+1613 3115 situate   1677 3215 spider    1741 3315 super     1805 3415 ticket    1869 3515 trust    
+1614 3116 six       1678 3216 spike     1742 3316 supply    1806 3416 tide      1870 3516 truth    
+1615 3117 size      1679 3217 spin      1743 3317 supreme   1807 3417 tiger     1871 3517 try      
+1616 3120 skate     1680 3220 spirit    1744 3320 sure      1808 3420 tilt      1872 3520 tube     
+1617 3121 sketch    1681 3221 split     1745 3321 surface   1809 3421 timber    1873 3521 tuition  
+1618 3122 ski       1682 3222 spoil     1746 3322 surge     1810 3422 time      1874 3522 tumble   
+1619 3123 skill     1683 3223 sponsor   1747 3323 surprise  1811 3423 tiny      1875 3523 tuna     
+1620 3124 skin      1684 3224 spoon     1748 3324 surround  1812 3424 tip       1876 3524 tunnel   
+1621 3125 skirt     1685 3225 sport     1749 3325 survey    1813 3425 tired     1877 3525 turkey   
+1622 3126 skull     1686 3226 spot      1750 3326 suspect   1814 3426 tissue    1878 3526 turn     
+1623 3127 slab      1687 3227 spray     1751 3327 sustain   1815 3427 title     1879 3527 turtle   
+1624 3130 slam      1688 3230 spread    1752 3330 swallow   1816 3430 toast     1880 3530 twelve   
+1625 3131 sleep     1689 3231 spring    1753 3331 swamp     1817 3431 tobacco   1881 3531 twenty   
+1626 3132 slender   1690 3232 spy       1754 3332 swap      1818 3432 today     1882 3532 twice    
+1627 3133 slice     1691 3233 square    1755 3333 swarm     1819 3433 toddler   1883 3533 twin     
+1628 3134 slide     1692 3234 squeeze   1756 3334 swear     1820 3434 toe       1884 3534 twist    
+1629 3135 slight    1693 3235 squirrel  1757 3335 sweet     1821 3435 together  1885 3535 two      
+1630 3136 slim      1694 3236 stable    1758 3336 swift     1822 3436 toilet    1886 3536 type     
+1631 3137 slogan    1695 3237 stadium   1759 3337 swim      1823 3437 token     1887 3537 typical  
+1632 3140 slot      1696 3240 staff     1760 3340 swing     1824 3440 tomato    1888 3540 ugly     
+1633 3141 slow      1697 3241 stage     1761 3341 switch    1825 3441 tomorrow  1889 3541 umbrella 
+1634 3142 slush     1698 3242 stairs    1762 3342 sword     1826 3442 tone      1890 3542 unable   
+1635 3143 small     1699 3243 stamp     1763 3343 symbol    1827 3443 tongue    1891 3543 unaware  
+1636 3144 smart     1700 3244 stand     1764 3344 symptom   1828 3444 tonight   1892 3544 uncle    
+1637 3145 smile     1701 3245 start     1765 3345 syrup     1829 3445 tool      1893 3545 uncover  
+1638 3146 smoke     1702 3246 state     1766 3346 system    1830 3446 tooth     1894 3546 under    
+1639 3147 smooth    1703 3247 stay      1767 3347 table     1831 3447 top       1895 3547 undo     
+1640 3150 snack     1704 3250 steak     1768 3350 tackle    1832 3450 topic     1896 3550 unfair   
+1641 3151 snake     1705 3251 steel     1769 3351 tag       1833 3451 topple    1897 3551 unfold   
+1642 3152 snap      1706 3252 stem      1770 3352 tail      1834 3452 torch     1898 3552 unhappy  
+1643 3153 sniff     1707 3253 step      1771 3353 talent    1835 3453 tornado   1899 3553 uniform  
+1644 3154 snow      1708 3254 stereo    1772 3354 talk      1836 3454 tortoise  1900 3554 unique   
+1645 3155 soap      1709 3255 stick     1773 3355 tank      1837 3455 toss      1901 3555 unit     
+1646 3156 soccer    1710 3256 still     1774 3356 tape      1838 3456 total     1902 3556 universe 
+1647 3157 social    1711 3257 sting     1775 3357 target    1839 3457 tourist   1903 3557 unknown  
+1648 3160 sock      1712 3260 stock     1776 3360 task      1840 3460 toward    1904 3560 unlock   
+1649 3161 soda      1713 3261 stomach   1777 3361 taste     1841 3461 tower     1905 3561 until    
+1650 3162 soft      1714 3262 stone     1778 3362 tattoo    1842 3462 town      1906 3562 unusual  
+1651 3163 solar     1715 3263 stool     1779 3363 taxi      1843 3463 toy       1907 3563 unveil   
+1652 3164 soldier   1716 3264 story     1780 3364 teach     1844 3464 track     1908 3564 update   
+1653 3165 solid     1717 3265 stove     1781 3365 team      1845 3465 trade     1909 3565 upgrade  
+1654 3166 solution  1718 3266 strategy  1782 3366 tell      1846 3466 traffic   1910 3566 uphold   
+1655 3167 solve     1719 3267 street    1783 3367 ten       1847 3467 tragic    1911 3567 upon     
+1656 3170 someone   1720 3270 strike    1784 3370 tenant    1848 3470 train     1912 3570 upper    
+1657 3171 song      1721 3271 strong    1785 3371 tennis    1849 3471 transfer  1913 3571 upset    
+1658 3172 soon      1722 3272 struggle  1786 3372 tent      1850 3472 trap      1914 3572 urban    
+1659 3173 sorry     1723 3273 student   1787 3373 term      1851 3473 trash     1915 3573 urge     
+1660 3174 sort      1724 3274 stuff     1788 3374 test      1852 3474 travel    1916 3574 usage    
+1661 3175 soul      1725 3275 stumble   1789 3375 text      1853 3475 tray      1917 3575 use      
+1662 3176 sound     1726 3276 style     1790 3376 thank     1854 3476 treat     1918 3576 used     
+1663 3177 soup      1727 3277 subject   1791 3377 that      1855 3477 tree      1919 3577 useful   
 </pre>
-</div>
-  <div class="pagenum">1/6</div>
-<h1>BIP 39 Wordlist</h1>
-  <div class="colset">
-<pre>
-0384 180 copy
-0385 181 coral
-0386 182 core
-0387 183 corn
-0388 184 correct
-0389 185 cost
-0390 186 cotton
-0391 187 couch
-0392 188 country
-0393 189 couple
-0394 18A course
-0395 18B cousin
-0396 18C cover
-0397 18D coyote
-0398 18E crack
-0399 18F cradle
-0400 190 craft
-0401 191 cram
-0402 192 crane
-0403 193 crash
-0404 194 crater
-0405 195 crawl
-0406 196 crazy
-0407 197 cream
-0408 198 credit
-0409 199 creek
-0410 19A crew
-0411 19B cricket
-0412 19C crime
-0413 19D crisp
-0414 19E critic
-0415 19F crop
-0416 1A0 cross
-0417 1A1 crouch
-0418 1A2 crowd
-0419 1A3 crucial
-0420 1A4 cruel
-0421 1A5 cruise
-0422 1A6 crumble
-0423 1A7 crunch
-0424 1A8 crush
-0425 1A9 cry
-0426 1AA crystal
-0427 1AB cube
-0428 1AC culture
-0429 1AD cup
-0430 1AE cupboard
-0431 1AF curious
-0432 1B0 current
-0433 1B1 curtain
-0434 1B2 curve
-0435 1B3 cushion
-0436 1B4 custom
-0437 1B5 cute
-0438 1B6 cycle
-0439 1B7 dad
-0440 1B8 damage
-0441 1B9 damp
-0442 1BA dance
-0443 1BB danger
-0444 1BC daring
-0445 1BD dash
-0446 1BE daughter
-0447 1BF dawn
+<div class="pagenum">6/7</div></div>
+<div class="page"><h1>BIP 39 Wordlist</h1><pre>
+DECI OCTA WORD      DECI OCTA WORD     
+==== ==== ========  ==== ==== ======== 
+1920 3600 useless   1984 3700 way      
+1921 3601 usual     1985 3701 wealth   
+1922 3602 utility   1986 3702 weapon   
+1923 3603 vacant    1987 3703 wear     
+1924 3604 vacuum    1988 3704 weasel   
+1925 3605 vague     1989 3705 weather  
+1926 3606 valid     1990 3706 web      
+1927 3607 valley    1991 3707 wedding  
+1928 3610 valve     1992 3710 weekend  
+1929 3611 van       1993 3711 weird    
+1930 3612 vanish    1994 3712 welcome  
+1931 3613 vapor     1995 3713 west     
+1932 3614 various   1996 3714 wet      
+1933 3615 vast      1997 3715 whale    
+1934 3616 vault     1998 3716 what     
+1935 3617 vehicle   1999 3717 wheat    
+1936 3620 velvet    2000 3720 wheel    
+1937 3621 vendor    2001 3721 when     
+1938 3622 venture   2002 3722 where    
+1939 3623 venue     2003 3723 whip     
+1940 3624 verb      2004 3724 whisper  
+1941 3625 verify    2005 3725 wide     
+1942 3626 version   2006 3726 width    
+1943 3627 very      2007 3727 wife     
+1944 3630 vessel    2008 3730 wild     
+1945 3631 veteran   2009 3731 will     
+1946 3632 viable    2010 3732 win      
+1947 3633 vibrant   2011 3733 window   
+1948 3634 vicious   2012 3734 wine     
+1949 3635 victory   2013 3735 wing     
+1950 3636 video     2014 3736 wink     
+1951 3637 view      2015 3737 winner   
+1952 3640 village   2016 3740 winter   
+1953 3641 vintage   2017 3741 wire     
+1954 3642 violin    2018 3742 wisdom   
+1955 3643 virtual   2019 3743 wise     
+1956 3644 virus     2020 3744 wish     
+1957 3645 visa      2021 3745 witness  
+1958 3646 visit     2022 3746 wolf     
+1959 3647 visual    2023 3747 woman    
+1960 3650 vital     2024 3750 wonder   
+1961 3651 vivid     2025 3751 wood     
+1962 3652 vocal     2026 3752 wool     
+1963 3653 voice     2027 3753 word     
+1964 3654 void      2028 3754 work     
+1965 3655 volcano   2029 3755 world    
+1966 3656 volume    2030 3756 worry    
+1967 3657 vote      2031 3757 worth    
+1968 3660 voyage    2032 3760 wrap     
+1969 3661 wage      2033 3761 wreck    
+1970 3662 wagon     2034 3762 wrestle  
+1971 3663 wait      2035 3763 wrist    
+1972 3664 walk      2036 3764 write    
+1973 3665 wall      2037 3765 wrong    
+1974 3666 walnut    2038 3766 yard     
+1975 3667 want      2039 3767 year     
+1976 3670 warfare   2040 3770 yellow   
+1977 3671 warm      2041 3771 you      
+1978 3672 warrior   2042 3772 young    
+1979 3673 wash      2043 3773 youth    
+1980 3674 wasp      2044 3774 zebra    
+1981 3675 waste     2045 3775 zero     
+1982 3676 water     2046 3776 zone     
+1983 3677 wave      2047 3777 zoo      
 </pre>
-<pre>
-0448 1C0 day
-0449 1C1 deal
-0450 1C2 debate
-0451 1C3 debris
-0452 1C4 decade
-0453 1C5 december
-0454 1C6 decide
-0455 1C7 decline
-0456 1C8 decorate
-0457 1C9 decrease
-0458 1CA deer
-0459 1CB defense
-0460 1CC define
-0461 1CD defy
-0462 1CE degree
-0463 1CF delay
-0464 1D0 deliver
-0465 1D1 demand
-0466 1D2 demise
-0467 1D3 denial
-0468 1D4 dentist
-0469 1D5 deny
-0470 1D6 depart
-0471 1D7 depend
-0472 1D8 deposit
-0473 1D9 depth
-0474 1DA deputy
-0475 1DB derive
-0476 1DC describe
-0477 1DD desert
-0478 1DE design
-0479 1DF desk
-0480 1E0 despair
-0481 1E1 destroy
-0482 1E2 detail
-0483 1E3 detect
-0484 1E4 develop
-0485 1E5 device
-0486 1E6 devote
-0487 1E7 diagram
-0488 1E8 dial
-0489 1E9 diamond
-0490 1EA diary
-0491 1EB dice
-0492 1EC diesel
-0493 1ED diet
-0494 1EE differ
-0495 1EF digital
-0496 1F0 dignity
-0497 1F1 dilemma
-0498 1F2 dinner
-0499 1F3 dinosaur
-0500 1F4 direct
-0501 1F5 dirt
-0502 1F6 disagree
-0503 1F7 discover
-0504 1F8 disease
-0505 1F9 dish
-0506 1FA dismiss
-0507 1FB disorder
-0508 1FC display
-0509 1FD distance
-0510 1FE divert
-0511 1FF divide
-</pre>
-<pre>
-0512 200 divorce
-0513 201 dizzy
-0514 202 doctor
-0515 203 document
-0516 204 dog
-0517 205 doll
-0518 206 dolphin
-0519 207 domain
-0520 208 donate
-0521 209 donkey
-0522 20A donor
-0523 20B door
-0524 20C dose
-0525 20D double
-0526 20E dove
-0527 20F draft
-0528 210 dragon
-0529 211 drama
-0530 212 drastic
-0531 213 draw
-0532 214 dream
-0533 215 dress
-0534 216 drift
-0535 217 drill
-0536 218 drink
-0537 219 drip
-0538 21A drive
-0539 21B drop
-0540 21C drum
-0541 21D dry
-0542 21E duck
-0543 21F dumb
-0544 220 dune
-0545 221 during
-0546 222 dust
-0547 223 dutch
-0548 224 duty
-0549 225 dwarf
-0550 226 dynamic
-0551 227 eager
-0552 228 eagle
-0553 229 early
-0554 22A earn
-0555 22B earth
-0556 22C easily
-0557 22D east
-0558 22E easy
-0559 22F echo
-0560 230 ecology
-0561 231 economy
-0562 232 edge
-0563 233 edit
-0564 234 educate
-0565 235 effort
-0566 236 egg
-0567 237 eight
-0568 238 either
-0569 239 elbow
-0570 23A elder
-0571 23B electric
-0572 23C elegant
-0573 23D element
-0574 23E elephant
-0575 23F elevator
-</pre>
-<pre>
-0576 240 elite
-0577 241 else
-0578 242 embark
-0579 243 embody
-0580 244 embrace
-0581 245 emerge
-0582 246 emotion
-0583 247 employ
-0584 248 empower
-0585 249 empty
-0586 24A enable
-0587 24B enact
-0588 24C end
-0589 24D endless
-0590 24E endorse
-0591 24F enemy
-0592 250 energy
-0593 251 enforce
-0594 252 engage
-0595 253 engine
-0596 254 enhance
-0597 255 enjoy
-0598 256 enlist
-0599 257 enough
-0600 258 enrich
-0601 259 enroll
-0602 25A ensure
-0603 25B enter
-0604 25C entire
-0605 25D entry
-0606 25E envelope
-0607 25F episode
-0608 260 equal
-0609 261 equip
-0610 262 era
-0611 263 erase
-0612 264 erode
-0613 265 erosion
-0614 266 error
-0615 267 erupt
-0616 268 escape
-0617 269 essay
-0618 26A essence
-0619 26B estate
-0620 26C eternal
-0621 26D ethics
-0622 26E evidence
-0623 26F evil
-0624 270 evoke
-0625 271 evolve
-0626 272 exact
-0627 273 example
-0628 274 excess
-0629 275 exchange
-0630 276 excite
-0631 277 exclude
-0632 278 excuse
-0633 279 execute
-0634 27A exercise
-0635 27B exhaust
-0636 27C exhibit
-0637 27D exile
-0638 27E exist
-0639 27F exit
-</pre>
-<pre>
-0640 280 exotic
-0641 281 expand
-0642 282 expect
-0643 283 expire
-0644 284 explain
-0645 285 expose
-0646 286 express
-0647 287 extend
-0648 288 extra
-0649 289 eye
-0650 28A eyebrow
-0651 28B fabric
-0652 28C face
-0653 28D faculty
-0654 28E fade
-0655 28F faint
-0656 290 faith
-0657 291 fall
-0658 292 false
-0659 293 fame
-0660 294 family
-0661 295 famous
-0662 296 fan
-0663 297 fancy
-0664 298 fantasy
-0665 299 farm
-0666 29A fashion
-0667 29B fat
-0668 29C fatal
-0669 29D father
-0670 29E fatigue
-0671 29F fault
-0672 2A0 favorite
-0673 2A1 feature
-0674 2A2 february
-0675 2A3 federal
-0676 2A4 fee
-0677 2A5 feed
-0678 2A6 feel
-0679 2A7 female
-0680 2A8 fence
-0681 2A9 festival
-0682 2AA fetch
-0683 2AB fever
-0684 2AC few
-0685 2AD fiber
-0686 2AE fiction
-0687 2AF field
-0688 2B0 figure
-0689 2B1 file
-0690 2B2 film
-0691 2B3 filter
-0692 2B4 final
-0693 2B5 find
-0694 2B6 fine
-0695 2B7 finger
-0696 2B8 finish
-0697 2B9 fire
-0698 2BA firm
-0699 2BB first
-0700 2BC fiscal
-0701 2BD fish
-0702 2BE fit
-0703 2BF fitness
-</pre>
-<pre>
-0704 2C0 fix
-0705 2C1 flag
-0706 2C2 flame
-0707 2C3 flash
-0708 2C4 flat
-0709 2C5 flavor
-0710 2C6 flee
-0711 2C7 flight
-0712 2C8 flip
-0713 2C9 float
-0714 2CA flock
-0715 2CB floor
-0716 2CC flower
-0717 2CD fluid
-0718 2CE flush
-0719 2CF fly
-0720 2D0 foam
-0721 2D1 focus
-0722 2D2 fog
-0723 2D3 foil
-0724 2D4 fold
-0725 2D5 follow
-0726 2D6 food
-0727 2D7 foot
-0728 2D8 force
-0729 2D9 forest
-0730 2DA forget
-0731 2DB fork
-0732 2DC fortune
-0733 2DD forum
-0734 2DE forward
-0735 2DF fossil
-0736 2E0 foster
-0737 2E1 found
-0738 2E2 fox
-0739 2E3 fragile
-0740 2E4 frame
-0741 2E5 frequent
-0742 2E6 fresh
-0743 2E7 friend
-0744 2E8 fringe
-0745 2E9 frog
-0746 2EA front
-0747 2EB frost
-0748 2EC frown
-0749 2ED frozen
-0750 2EE fruit
-0751 2EF fuel
-0752 2F0 fun
-0753 2F1 funny
-0754 2F2 furnace
-0755 2F3 fury
-0756 2F4 future
-0757 2F5 gadget
-0758 2F6 gain
-0759 2F7 galaxy
-0760 2F8 gallery
-0761 2F9 game
-0762 2FA gap
-0763 2FB garage
-0764 2FC garbage
-0765 2FD garden
-0766 2FE garlic
-0767 2FF garment
-</pre>
-</div>
-  <div class="pagenum">2/6</div>
-<h1>BIP 39 Wordlist</h1>
-  <div class="colset">
-<pre>
-0768 300 gas
-0769 301 gasp
-0770 302 gate
-0771 303 gather
-0772 304 gauge
-0773 305 gaze
-0774 306 general
-0775 307 genius
-0776 308 genre
-0777 309 gentle
-0778 30A genuine
-0779 30B gesture
-0780 30C ghost
-0781 30D giant
-0782 30E gift
-0783 30F giggle
-0784 310 ginger
-0785 311 giraffe
-0786 312 girl
-0787 313 give
-0788 314 glad
-0789 315 glance
-0790 316 glare
-0791 317 glass
-0792 318 glide
-0793 319 glimpse
-0794 31A globe
-0795 31B gloom
-0796 31C glory
-0797 31D glove
-0798 31E glow
-0799 31F glue
-0800 320 goat
-0801 321 goddess
-0802 322 gold
-0803 323 good
-0804 324 goose
-0805 325 gorilla
-0806 326 gospel
-0807 327 gossip
-0808 328 govern
-0809 329 gown
-0810 32A grab
-0811 32B grace
-0812 32C grain
-0813 32D grant
-0814 32E grape
-0815 32F grass
-0816 330 gravity
-0817 331 great
-0818 332 green
-0819 333 grid
-0820 334 grief
-0821 335 grit
-0822 336 grocery
-0823 337 group
-0824 338 grow
-0825 339 grunt
-0826 33A guard
-0827 33B guess
-0828 33C guide
-0829 33D guilt
-0830 33E guitar
-0831 33F gun
-</pre>
-<pre>
-0832 340 gym
-0833 341 habit
-0834 342 hair
-0835 343 half
-0836 344 hammer
-0837 345 hamster
-0838 346 hand
-0839 347 happy
-0840 348 harbor
-0841 349 hard
-0842 34A harsh
-0843 34B harvest
-0844 34C hat
-0845 34D have
-0846 34E hawk
-0847 34F hazard
-0848 350 head
-0849 351 health
-0850 352 heart
-0851 353 heavy
-0852 354 hedgehog
-0853 355 height
-0854 356 hello
-0855 357 helmet
-0856 358 help
-0857 359 hen
-0858 35A hero
-0859 35B hidden
-0860 35C high
-0861 35D hill
-0862 35E hint
-0863 35F hip
-0864 360 hire
-0865 361 history
-0866 362 hobby
-0867 363 hockey
-0868 364 hold
-0869 365 hole
-0870 366 holiday
-0871 367 hollow
-0872 368 home
-0873 369 honey
-0874 36A hood
-0875 36B hope
-0876 36C horn
-0877 36D horror
-0878 36E horse
-0879 36F hospital
-0880 370 host
-0881 371 hotel
-0882 372 hour
-0883 373 hover
-0884 374 hub
-0885 375 huge
-0886 376 human
-0887 377 humble
-0888 378 humor
-0889 379 hundred
-0890 37A hungry
-0891 37B hunt
-0892 37C hurdle
-0893 37D hurry
-0894 37E hurt
-0895 37F husband
-</pre>
-<pre>
-0896 380 hybrid
-0897 381 ice
-0898 382 icon
-0899 383 idea
-0900 384 identify
-0901 385 idle
-0902 386 ignore
-0903 387 ill
-0904 388 illegal
-0905 389 illness
-0906 38A image
-0907 38B imitate
-0908 38C immense
-0909 38D immune
-0910 38E impact
-0911 38F impose
-0912 390 improve
-0913 391 impulse
-0914 392 inch
-0915 393 include
-0916 394 income
-0917 395 increase
-0918 396 index
-0919 397 indicate
-0920 398 indoor
-0921 399 industry
-0922 39A infant
-0923 39B inflict
-0924 39C inform
-0925 39D inhale
-0926 39E inherit
-0927 39F initial
-0928 3A0 inject
-0929 3A1 injury
-0930 3A2 inmate
-0931 3A3 inner
-0932 3A4 innocent
-0933 3A5 input
-0934 3A6 inquiry
-0935 3A7 insane
-0936 3A8 insect
-0937 3A9 inside
-0938 3AA inspire
-0939 3AB install
-0940 3AC intact
-0941 3AD interest
-0942 3AE into
-0943 3AF invest
-0944 3B0 invite
-0945 3B1 involve
-0946 3B2 iron
-0947 3B3 island
-0948 3B4 isolate
-0949 3B5 issue
-0950 3B6 item
-0951 3B7 ivory
-0952 3B8 jacket
-0953 3B9 jaguar
-0954 3BA jar
-0955 3BB jazz
-0956 3BC jealous
-0957 3BD jeans
-0958 3BE jelly
-0959 3BF jewel
-</pre>
-<pre>
-0960 3C0 job
-0961 3C1 join
-0962 3C2 joke
-0963 3C3 journey
-0964 3C4 joy
-0965 3C5 judge
-0966 3C6 juice
-0967 3C7 jump
-0968 3C8 jungle
-0969 3C9 junior
-0970 3CA junk
-0971 3CB just
-0972 3CC kangaroo
-0973 3CD keen
-0974 3CE keep
-0975 3CF ketchup
-0976 3D0 key
-0977 3D1 kick
-0978 3D2 kid
-0979 3D3 kidney
-0980 3D4 kind
-0981 3D5 kingdom
-0982 3D6 kiss
-0983 3D7 kit
-0984 3D8 kitchen
-0985 3D9 kite
-0986 3DA kitten
-0987 3DB kiwi
-0988 3DC knee
-0989 3DD knife
-0990 3DE knock
-0991 3DF know
-0992 3E0 lab
-0993 3E1 label
-0994 3E2 labor
-0995 3E3 ladder
-0996 3E4 lady
-0997 3E5 lake
-0998 3E6 lamp
-0999 3E7 language
-1000 3E8 laptop
-1001 3E9 large
-1002 3EA later
-1003 3EB latin
-1004 3EC laugh
-1005 3ED laundry
-1006 3EE lava
-1007 3EF law
-1008 3F0 lawn
-1009 3F1 lawsuit
-1010 3F2 layer
-1011 3F3 lazy
-1012 3F4 leader
-1013 3F5 leaf
-1014 3F6 learn
-1015 3F7 leave
-1016 3F8 lecture
-1017 3F9 left
-1018 3FA leg
-1019 3FB legal
-1020 3FC legend
-1021 3FD leisure
-1022 3FE lemon
-1023 3FF lend
-</pre>
-<pre>
-1024 400 length
-1025 401 lens
-1026 402 leopard
-1027 403 lesson
-1028 404 letter
-1029 405 level
-1030 406 liar
-1031 407 liberty
-1032 408 library
-1033 409 license
-1034 40A life
-1035 40B lift
-1036 40C light
-1037 40D like
-1038 40E limb
-1039 40F limit
-1040 410 link
-1041 411 lion
-1042 412 liquid
-1043 413 list
-1044 414 little
-1045 415 live
-1046 416 lizard
-1047 417 load
-1048 418 loan
-1049 419 lobster
-1050 41A local
-1051 41B lock
-1052 41C logic
-1053 41D lonely
-1054 41E long
-1055 41F loop
-1056 420 lottery
-1057 421 loud
-1058 422 lounge
-1059 423 love
-1060 424 loyal
-1061 425 lucky
-1062 426 luggage
-1063 427 lumber
-1064 428 lunar
-1065 429 lunch
-1066 42A luxury
-1067 42B lyrics
-1068 42C machine
-1069 42D mad
-1070 42E magic
-1071 42F magnet
-1072 430 maid
-1073 431 mail
-1074 432 main
-1075 433 major
-1076 434 make
-1077 435 mammal
-1078 436 man
-1079 437 manage
-1080 438 mandate
-1081 439 mango
-1082 43A mansion
-1083 43B manual
-1084 43C maple
-1085 43D marble
-1086 43E march
-1087 43F margin
-</pre>
-<pre>
-1088 440 marine
-1089 441 market
-1090 442 marriage
-1091 443 mask
-1092 444 mass
-1093 445 master
-1094 446 match
-1095 447 material
-1096 448 math
-1097 449 matrix
-1098 44A matter
-1099 44B maximum
-1100 44C maze
-1101 44D meadow
-1102 44E mean
-1103 44F measure
-1104 450 meat
-1105 451 mechanic
-1106 452 medal
-1107 453 media
-1108 454 melody
-1109 455 melt
-1110 456 member
-1111 457 memory
-1112 458 mention
-1113 459 menu
-1114 45A mercy
-1115 45B merge
-1116 45C merit
-1117 45D merry
-1118 45E mesh
-1119 45F message
-1120 460 metal
-1121 461 method
-1122 462 middle
-1123 463 midnight
-1124 464 milk
-1125 465 million
-1126 466 mimic
-1127 467 mind
-1128 468 minimum
-1129 469 minor
-1130 46A minute
-1131 46B miracle
-1132 46C mirror
-1133 46D misery
-1134 46E miss
-1135 46F mistake
-1136 470 mix
-1137 471 mixed
-1138 472 mixture
-1139 473 mobile
-1140 474 model
-1141 475 modify
-1142 476 mom
-1143 477 moment
-1144 478 monitor
-1145 479 monkey
-1146 47A monster
-1147 47B month
-1148 47C moon
-1149 47D moral
-1150 47E more
-1151 47F morning
-</pre>
-</div>
-  <div class="pagenum">3/6</div>
-<h1>BIP 39 Wordlist</h1>
-  <div class="colset">
-<pre>
-1152 480 mosquito
-1153 481 mother
-1154 482 motion
-1155 483 motor
-1156 484 mountain
-1157 485 mouse
-1158 486 move
-1159 487 movie
-1160 488 much
-1161 489 muffin
-1162 48A mule
-1163 48B multiply
-1164 48C muscle
-1165 48D museum
-1166 48E mushroom
-1167 48F music
-1168 490 must
-1169 491 mutual
-1170 492 myself
-1171 493 mystery
-1172 494 myth
-1173 495 naive
-1174 496 name
-1175 497 napkin
-1176 498 narrow
-1177 499 nasty
-1178 49A nation
-1179 49B nature
-1180 49C near
-1181 49D neck
-1182 49E need
-1183 49F negative
-1184 4A0 neglect
-1185 4A1 neither
-1186 4A2 nephew
-1187 4A3 nerve
-1188 4A4 nest
-1189 4A5 net
-1190 4A6 network
-1191 4A7 neutral
-1192 4A8 never
-1193 4A9 news
-1194 4AA next
-1195 4AB nice
-1196 4AC night
-1197 4AD noble
-1198 4AE noise
-1199 4AF nominee
-1200 4B0 noodle
-1201 4B1 normal
-1202 4B2 north
-1203 4B3 nose
-1204 4B4 notable
-1205 4B5 note
-1206 4B6 nothing
-1207 4B7 notice
-1208 4B8 novel
-1209 4B9 now
-1210 4BA nuclear
-1211 4BB number
-1212 4BC nurse
-1213 4BD nut
-1214 4BE oak
-1215 4BF obey
-</pre>
-<pre>
-1216 4C0 object
-1217 4C1 oblige
-1218 4C2 obscure
-1219 4C3 observe
-1220 4C4 obtain
-1221 4C5 obvious
-1222 4C6 occur
-1223 4C7 ocean
-1224 4C8 october
-1225 4C9 odor
-1226 4CA off
-1227 4CB offer
-1228 4CC office
-1229 4CD often
-1230 4CE oil
-1231 4CF okay
-1232 4D0 old
-1233 4D1 olive
-1234 4D2 olympic
-1235 4D3 omit
-1236 4D4 once
-1237 4D5 one
-1238 4D6 onion
-1239 4D7 online
-1240 4D8 only
-1241 4D9 open
-1242 4DA opera
-1243 4DB opinion
-1244 4DC oppose
-1245 4DD option
-1246 4DE orange
-1247 4DF orbit
-1248 4E0 orchard
-1249 4E1 order
-1250 4E2 ordinary
-1251 4E3 organ
-1252 4E4 orient
-1253 4E5 original
-1254 4E6 orphan
-1255 4E7 ostrich
-1256 4E8 other
-1257 4E9 outdoor
-1258 4EA outer
-1259 4EB output
-1260 4EC outside
-1261 4ED oval
-1262 4EE oven
-1263 4EF over
-1264 4F0 own
-1265 4F1 owner
-1266 4F2 oxygen
-1267 4F3 oyster
-1268 4F4 ozone
-1269 4F5 pact
-1270 4F6 paddle
-1271 4F7 page
-1272 4F8 pair
-1273 4F9 palace
-1274 4FA palm
-1275 4FB panda
-1276 4FC panel
-1277 4FD panic
-1278 4FE panther
-1279 4FF paper
-</pre>
-<pre>
-1280 500 parade
-1281 501 parent
-1282 502 park
-1283 503 parrot
-1284 504 party
-1285 505 pass
-1286 506 patch
-1287 507 path
-1288 508 patient
-1289 509 patrol
-1290 50A pattern
-1291 50B pause
-1292 50C pave
-1293 50D payment
-1294 50E peace
-1295 50F peanut
-1296 510 pear
-1297 511 peasant
-1298 512 pelican
-1299 513 pen
-1300 514 penalty
-1301 515 pencil
-1302 516 people
-1303 517 pepper
-1304 518 perfect
-1305 519 permit
-1306 51A person
-1307 51B pet
-1308 51C phone
-1309 51D photo
-1310 51E phrase
-1311 51F physical
-1312 520 piano
-1313 521 picnic
-1314 522 picture
-1315 523 piece
-1316 524 pig
-1317 525 pigeon
-1318 526 pill
-1319 527 pilot
-1320 528 pink
-1321 529 pioneer
-1322 52A pipe
-1323 52B pistol
-1324 52C pitch
-1325 52D pizza
-1326 52E place
-1327 52F planet
-1328 530 plastic
-1329 531 plate
-1330 532 play
-1331 533 please
-1332 534 pledge
-1333 535 pluck
-1334 536 plug
-1335 537 plunge
-1336 538 poem
-1337 539 poet
-1338 53A point
-1339 53B polar
-1340 53C pole
-1341 53D police
-1342 53E pond
-1343 53F pony
-</pre>
-<pre>
-1344 540 pool
-1345 541 popular
-1346 542 portion
-1347 543 position
-1348 544 possible
-1349 545 post
-1350 546 potato
-1351 547 pottery
-1352 548 poverty
-1353 549 powder
-1354 54A power
-1355 54B practice
-1356 54C praise
-1357 54D predict
-1358 54E prefer
-1359 54F prepare
-1360 550 present
-1361 551 pretty
-1362 552 prevent
-1363 553 price
-1364 554 pride
-1365 555 primary
-1366 556 print
-1367 557 priority
-1368 558 prison
-1369 559 private
-1370 55A prize
-1371 55B problem
-1372 55C process
-1373 55D produce
-1374 55E profit
-1375 55F program
-1376 560 project
-1377 561 promote
-1378 562 proof
-1379 563 property
-1380 564 prosper
-1381 565 protect
-1382 566 proud
-1383 567 provide
-1384 568 public
-1385 569 pudding
-1386 56A pull
-1387 56B pulp
-1388 56C pulse
-1389 56D pumpkin
-1390 56E punch
-1391 56F pupil
-1392 570 puppy
-1393 571 purchase
-1394 572 purity
-1395 573 purpose
-1396 574 purse
-1397 575 push
-1398 576 put
-1399 577 puzzle
-1400 578 pyramid
-1401 579 quality
-1402 57A quantum
-1403 57B quarter
-1404 57C question
-1405 57D quick
-1406 57E quit
-1407 57F quiz
-</pre>
-<pre>
-1408 580 quote
-1409 581 rabbit
-1410 582 raccoon
-1411 583 race
-1412 584 rack
-1413 585 radar
-1414 586 radio
-1415 587 rail
-1416 588 rain
-1417 589 raise
-1418 58A rally
-1419 58B ramp
-1420 58C ranch
-1421 58D random
-1422 58E range
-1423 58F rapid
-1424 590 rare
-1425 591 rate
-1426 592 rather
-1427 593 raven
-1428 594 raw
-1429 595 razor
-1430 596 ready
-1431 597 real
-1432 598 reason
-1433 599 rebel
-1434 59A rebuild
-1435 59B recall
-1436 59C receive
-1437 59D recipe
-1438 59E record
-1439 59F recycle
-1440 5A0 reduce
-1441 5A1 reflect
-1442 5A2 reform
-1443 5A3 refuse
-1444 5A4 region
-1445 5A5 regret
-1446 5A6 regular
-1447 5A7 reject
-1448 5A8 relax
-1449 5A9 release
-1450 5AA relief
-1451 5AB rely
-1452 5AC remain
-1453 5AD remember
-1454 5AE remind
-1455 5AF remove
-1456 5B0 render
-1457 5B1 renew
-1458 5B2 rent
-1459 5B3 reopen
-1460 5B4 repair
-1461 5B5 repeat
-1462 5B6 replace
-1463 5B7 report
-1464 5B8 require
-1465 5B9 rescue
-1466 5BA resemble
-1467 5BB resist
-1468 5BC resource
-1469 5BD response
-1470 5BE result
-1471 5BF retire
-</pre>
-<pre>
-1472 5C0 retreat
-1473 5C1 return
-1474 5C2 reunion
-1475 5C3 reveal
-1476 5C4 review
-1477 5C5 reward
-1478 5C6 rhythm
-1479 5C7 rib
-1480 5C8 ribbon
-1481 5C9 rice
-1482 5CA rich
-1483 5CB ride
-1484 5CC ridge
-1485 5CD rifle
-1486 5CE right
-1487 5CF rigid
-1488 5D0 ring
-1489 5D1 riot
-1490 5D2 ripple
-1491 5D3 risk
-1492 5D4 ritual
-1493 5D5 rival
-1494 5D6 river
-1495 5D7 road
-1496 5D8 roast
-1497 5D9 robot
-1498 5DA robust
-1499 5DB rocket
-1500 5DC romance
-1501 5DD roof
-1502 5DE rookie
-1503 5DF room
-1504 5E0 rose
-1505 5E1 rotate
-1506 5E2 rough
-1507 5E3 round
-1508 5E4 route
-1509 5E5 royal
-1510 5E6 rubber
-1511 5E7 rude
-1512 5E8 rug
-1513 5E9 rule
-1514 5EA run
-1515 5EB runway
-1516 5EC rural
-1517 5ED sad
-1518 5EE saddle
-1519 5EF sadness
-1520 5F0 safe
-1521 5F1 sail
-1522 5F2 salad
-1523 5F3 salmon
-1524 5F4 salon
-1525 5F5 salt
-1526 5F6 salute
-1527 5F7 same
-1528 5F8 sample
-1529 5F9 sand
-1530 5FA satisfy
-1531 5FB satoshi
-1532 5FC sauce
-1533 5FD sausage
-1534 5FE save
-1535 5FF say
-</pre>
-</div>
-  <div class="pagenum">4/6</div>
-<h1>BIP 39 Wordlist</h1>
-  <div class="colset">
-<pre>
-1536 600 scale
-1537 601 scan
-1538 602 scare
-1539 603 scatter
-1540 604 scene
-1541 605 scheme
-1542 606 school
-1543 607 science
-1544 608 scissors
-1545 609 scorpion
-1546 60A scout
-1547 60B scrap
-1548 60C screen
-1549 60D script
-1550 60E scrub
-1551 60F sea
-1552 610 search
-1553 611 season
-1554 612 seat
-1555 613 second
-1556 614 secret
-1557 615 section
-1558 616 security
-1559 617 seed
-1560 618 seek
-1561 619 segment
-1562 61A select
-1563 61B sell
-1564 61C seminar
-1565 61D senior
-1566 61E sense
-1567 61F sentence
-1568 620 series
-1569 621 service
-1570 622 session
-1571 623 settle
-1572 624 setup
-1573 625 seven
-1574 626 shadow
-1575 627 shaft
-1576 628 shallow
-1577 629 share
-1578 62A shed
-1579 62B shell
-1580 62C sheriff
-1581 62D shield
-1582 62E shift
-1583 62F shine
-1584 630 ship
-1585 631 shiver
-1586 632 shock
-1587 633 shoe
-1588 634 shoot
-1589 635 shop
-1590 636 short
-1591 637 shoulder
-1592 638 shove
-1593 639 shrimp
-1594 63A shrug
-1595 63B shuffle
-1596 63C shy
-1597 63D sibling
-1598 63E sick
-1599 63F side
-</pre>
-<pre>
-1600 640 siege
-1601 641 sight
-1602 642 sign
-1603 643 silent
-1604 644 silk
-1605 645 silly
-1606 646 silver
-1607 647 similar
-1608 648 simple
-1609 649 since
-1610 64A sing
-1611 64B siren
-1612 64C sister
-1613 64D situate
-1614 64E six
-1615 64F size
-1616 650 skate
-1617 651 sketch
-1618 652 ski
-1619 653 skill
-1620 654 skin
-1621 655 skirt
-1622 656 skull
-1623 657 slab
-1624 658 slam
-1625 659 sleep
-1626 65A slender
-1627 65B slice
-1628 65C slide
-1629 65D slight
-1630 65E slim
-1631 65F slogan
-1632 660 slot
-1633 661 slow
-1634 662 slush
-1635 663 small
-1636 664 smart
-1637 665 smile
-1638 666 smoke
-1639 667 smooth
-1640 668 snack
-1641 669 snake
-1642 66A snap
-1643 66B sniff
-1644 66C snow
-1645 66D soap
-1646 66E soccer
-1647 66F social
-1648 670 sock
-1649 671 soda
-1650 672 soft
-1651 673 solar
-1652 674 soldier
-1653 675 solid
-1654 676 solution
-1655 677 solve
-1656 678 someone
-1657 679 song
-1658 67A soon
-1659 67B sorry
-1660 67C sort
-1661 67D soul
-1662 67E sound
-1663 67F soup
-</pre>
-<pre>
-1664 680 source
-1665 681 south
-1666 682 space
-1667 683 spare
-1668 684 spatial
-1669 685 spawn
-1670 686 speak
-1671 687 special
-1672 688 speed
-1673 689 spell
-1674 68A spend
-1675 68B sphere
-1676 68C spice
-1677 68D spider
-1678 68E spike
-1679 68F spin
-1680 690 spirit
-1681 691 split
-1682 692 spoil
-1683 693 sponsor
-1684 694 spoon
-1685 695 sport
-1686 696 spot
-1687 697 spray
-1688 698 spread
-1689 699 spring
-1690 69A spy
-1691 69B square
-1692 69C squeeze
-1693 69D squirrel
-1694 69E stable
-1695 69F stadium
-1696 6A0 staff
-1697 6A1 stage
-1698 6A2 stairs
-1699 6A3 stamp
-1700 6A4 stand
-1701 6A5 start
-1702 6A6 state
-1703 6A7 stay
-1704 6A8 steak
-1705 6A9 steel
-1706 6AA stem
-1707 6AB step
-1708 6AC stereo
-1709 6AD stick
-1710 6AE still
-1711 6AF sting
-1712 6B0 stock
-1713 6B1 stomach
-1714 6B2 stone
-1715 6B3 stool
-1716 6B4 story
-1717 6B5 stove
-1718 6B6 strategy
-1719 6B7 street
-1720 6B8 strike
-1721 6B9 strong
-1722 6BA struggle
-1723 6BB student
-1724 6BC stuff
-1725 6BD stumble
-1726 6BE style
-1727 6BF subject
-</pre>
-<pre>
-1728 6C0 submit
-1729 6C1 subway
-1730 6C2 success
-1731 6C3 such
-1732 6C4 sudden
-1733 6C5 suffer
-1734 6C6 sugar
-1735 6C7 suggest
-1736 6C8 suit
-1737 6C9 summer
-1738 6CA sun
-1739 6CB sunny
-1740 6CC sunset
-1741 6CD super
-1742 6CE supply
-1743 6CF supreme
-1744 6D0 sure
-1745 6D1 surface
-1746 6D2 surge
-1747 6D3 surprise
-1748 6D4 surround
-1749 6D5 survey
-1750 6D6 suspect
-1751 6D7 sustain
-1752 6D8 swallow
-1753 6D9 swamp
-1754 6DA swap
-1755 6DB swarm
-1756 6DC swear
-1757 6DD sweet
-1758 6DE swift
-1759 6DF swim
-1760 6E0 swing
-1761 6E1 switch
-1762 6E2 sword
-1763 6E3 symbol
-1764 6E4 symptom
-1765 6E5 syrup
-1766 6E6 system
-1767 6E7 table
-1768 6E8 tackle
-1769 6E9 tag
-1770 6EA tail
-1771 6EB talent
-1772 6EC talk
-1773 6ED tank
-1774 6EE tape
-1775 6EF target
-1776 6F0 task
-1777 6F1 taste
-1778 6F2 tattoo
-1779 6F3 taxi
-1780 6F4 teach
-1781 6F5 team
-1782 6F6 tell
-1783 6F7 ten
-1784 6F8 tenant
-1785 6F9 tennis
-1786 6FA tent
-1787 6FB term
-1788 6FC test
-1789 6FD text
-1790 6FE thank
-1791 6FF that
-</pre>
-<pre>
-1792 700 theme
-1793 701 then
-1794 702 theory
-1795 703 there
-1796 704 they
-1797 705 thing
-1798 706 this
-1799 707 thought
-1800 708 three
-1801 709 thrive
-1802 70A throw
-1803 70B thumb
-1804 70C thunder
-1805 70D ticket
-1806 70E tide
-1807 70F tiger
-1808 710 tilt
-1809 711 timber
-1810 712 time
-1811 713 tiny
-1812 714 tip
-1813 715 tired
-1814 716 tissue
-1815 717 title
-1816 718 toast
-1817 719 tobacco
-1818 71A today
-1819 71B toddler
-1820 71C toe
-1821 71D together
-1822 71E toilet
-1823 71F token
-1824 720 tomato
-1825 721 tomorrow
-1826 722 tone
-1827 723 tongue
-1828 724 tonight
-1829 725 tool
-1830 726 tooth
-1831 727 top
-1832 728 topic
-1833 729 topple
-1834 72A torch
-1835 72B tornado
-1836 72C tortoise
-1837 72D toss
-1838 72E total
-1839 72F tourist
-1840 730 toward
-1841 731 tower
-1842 732 town
-1843 733 toy
-1844 734 track
-1845 735 trade
-1846 736 traffic
-1847 737 tragic
-1848 738 train
-1849 739 transfer
-1850 73A trap
-1851 73B trash
-1852 73C travel
-1853 73D tray
-1854 73E treat
-1855 73F tree
-</pre>
-<pre>
-1856 740 trend
-1857 741 trial
-1858 742 tribe
-1859 743 trick
-1860 744 trigger
-1861 745 trim
-1862 746 trip
-1863 747 trophy
-1864 748 trouble
-1865 749 truck
-1866 74A true
-1867 74B truly
-1868 74C trumpet
-1869 74D trust
-1870 74E truth
-1871 74F try
-1872 750 tube
-1873 751 tuition
-1874 752 tumble
-1875 753 tuna
-1876 754 tunnel
-1877 755 turkey
-1878 756 turn
-1879 757 turtle
-1880 758 twelve
-1881 759 twenty
-1882 75A twice
-1883 75B twin
-1884 75C twist
-1885 75D two
-1886 75E type
-1887 75F typical
-1888 760 ugly
-1889 761 umbrella
-1890 762 unable
-1891 763 unaware
-1892 764 uncle
-1893 765 uncover
-1894 766 under
-1895 767 undo
-1896 768 unfair
-1897 769 unfold
-1898 76A unhappy
-1899 76B uniform
-1900 76C unique
-1901 76D unit
-1902 76E universe
-1903 76F unknown
-1904 770 unlock
-1905 771 until
-1906 772 unusual
-1907 773 unveil
-1908 774 update
-1909 775 upgrade
-1910 776 uphold
-1911 777 upon
-1912 778 upper
-1913 779 upset
-1914 77A urban
-1915 77B urge
-1916 77C usage
-1917 77D use
-1918 77E used
-1919 77F useful
-</pre>
-</div>
-  <div class="pagenum">5/6</div>
-<h1>BIP 39 Wordlist</h1>
-  <div class="colset">
-<pre>
-1920 780 useless
-1921 781 usual
-1922 782 utility
-1923 783 vacant
-1924 784 vacuum
-1925 785 vague
-1926 786 valid
-1927 787 valley
-1928 788 valve
-1929 789 van
-1930 78A vanish
-1931 78B vapor
-1932 78C various
-1933 78D vast
-1934 78E vault
-1935 78F vehicle
-1936 790 velvet
-1937 791 vendor
-1938 792 venture
-1939 793 venue
-1940 794 verb
-1941 795 verify
-1942 796 version
-1943 797 very
-1944 798 vessel
-1945 799 veteran
-1946 79A viable
-1947 79B vibrant
-1948 79C vicious
-1949 79D victory
-1950 79E video
-1951 79F view
-1952 7A0 village
-1953 7A1 vintage
-1954 7A2 violin
-1955 7A3 virtual
-1956 7A4 virus
-1957 7A5 visa
-1958 7A6 visit
-1959 7A7 visual
-1960 7A8 vital
-1961 7A9 vivid
-1962 7AA vocal
-1963 7AB voice
-1964 7AC void
-1965 7AD volcano
-1966 7AE volume
-1967 7AF vote
-1968 7B0 voyage
-1969 7B1 wage
-1970 7B2 wagon
-1971 7B3 wait
-1972 7B4 walk
-1973 7B5 wall
-1974 7B6 walnut
-1975 7B7 want
-1976 7B8 warfare
-1977 7B9 warm
-1978 7BA warrior
-1979 7BB wash
-1980 7BC wasp
-1981 7BD waste
-1982 7BE water
-1983 7BF wave
-</pre>
-<pre>
-1984 7C0 way
-1985 7C1 wealth
-1986 7C2 weapon
-1987 7C3 wear
-1988 7C4 weasel
-1989 7C5 weather
-1990 7C6 web
-1991 7C7 wedding
-1992 7C8 weekend
-1993 7C9 weird
-1994 7CA welcome
-1995 7CB west
-1996 7CC wet
-1997 7CD whale
-1998 7CE what
-1999 7CF wheat
-2000 7D0 wheel
-2001 7D1 when
-2002 7D2 where
-2003 7D3 whip
-2004 7D4 whisper
-2005 7D5 wide
-2006 7D6 width
-2007 7D7 wife
-2008 7D8 wild
-2009 7D9 will
-2010 7DA win
-2011 7DB window
-2012 7DC wine
-2013 7DD wing
-2014 7DE wink
-2015 7DF winner
-2016 7E0 winter
-2017 7E1 wire
-2018 7E2 wisdom
-2019 7E3 wise
-2020 7E4 wish
-2021 7E5 witness
-2022 7E6 wolf
-2023 7E7 woman
-2024 7E8 wonder
-2025 7E9 wood
-2026 7EA wool
-2027 7EB word
-2028 7EC work
-2029 7ED world
-2030 7EE worry
-2031 7EF worth
-2032 7F0 wrap
-2033 7F1 wreck
-2034 7F2 wrestle
-2035 7F3 wrist
-2036 7F4 write
-2037 7F5 wrong
-2038 7F6 yard
-2039 7F7 year
-2040 7F8 yellow
-2041 7F9 you
-2042 7FA young
-2043 7FB youth
-2044 7FC zebra
-2045 7FD zero
-2046 7FE zone
-2047 7FF zoo
-</pre>
-<pre>
-</pre>
-<pre>
-</pre>
-<pre>
-</pre>
-<pre>
-</pre>
-</div>
-  <div class="pagenum">6/6</div>
+<div class="pagenum">7/7</div></div>
