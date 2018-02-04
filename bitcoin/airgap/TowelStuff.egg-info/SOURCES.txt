@@ -1,4 +1,0 @@
-TowelStuff.egg-info/PKG-INFO
-TowelStuff.egg-info/SOURCES.txt
-TowelStuff.egg-info/dependency_links.txt
-TowelStuff.egg-info/top_level.txt
