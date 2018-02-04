@@ -1,0 +1,9 @@
+actionid: py27
+msg: getenv
+cmdargs: ['/home/hjfreyer/.virtualenvs/airgap/bin/python', '-m', 'virtualenv', '--python', '/home/hjfreyer/.virtualenvs/airgap/bin/python2.7', 'py27']
+
+Using real prefix '/usr'
+New python executable in /home/hjfreyer/misc/bitcoin/airgap/.tox/py27/bin/python2.7
+Also creating executable in /home/hjfreyer/misc/bitcoin/airgap/.tox/py27/bin/python
+Installing setuptools, pip, wheel...done.
+Running virtualenv with interpreter /home/hjfreyer/.virtualenvs/airgap/bin/python2.7

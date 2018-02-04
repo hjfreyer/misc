@@ -1,0 +1,5 @@
+{
+  "tests/test_command.py::TestStringMethods::test_wifs_0__home_hjfreyer_misc_bitcoin_airgap_tests_data_files_0_seeds_2_txt": true,
+  "tests/test_command.py::TestStringMethods::test_wifs_1__home_hjfreyer_misc_bitcoin_airgap_tests_data_files_0_seeds_1_txt": true,
+  "tests/test_command.py::TestStringMethods::test_wifs_2__home_hjfreyer_misc_bitcoin_airgap_tests_data_files_0_seeds_0_txt": true
+}

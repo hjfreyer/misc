@@ -1,0 +1,24 @@
+actionid: tox
+msg: packaging
+cmdargs: ['/home/hjfreyer/.virtualenvs/airgap/bin/python', local('/home/hjfreyer/misc/bitcoin/airgap/setup.py'), 'sdist', '--formats=zip', '--dist-dir', local('/home/hjfreyer/misc/bitcoin/airgap/.tox/dist')]
+
+/usr/lib/python2.7/distutils/dist.py:267: UserWarning: Unknown distribution option: 'install_requires'
+  warnings.warn(msg)
+running sdist
+running check
+warning: check: missing required meta-data: version, url
+
+warning: check: missing meta-data: either (author and author_email) or (maintainer and maintainer_email) must be supplied
+
+warning: sdist: manifest template 'MANIFEST.in' does not exist (using default file list)
+
+warning: sdist: standard file not found: should have one of README, README.txt
+
+writing manifest file 'MANIFEST'
+creating TowelStuff-0.0.0
+making hard links in TowelStuff-0.0.0...
+hard linking setup.py -> TowelStuff-0.0.0
+creating '.tox/dist/TowelStuff-0.0.0.zip' and adding 'TowelStuff-0.0.0' to it
+adding 'TowelStuff-0.0.0/PKG-INFO'
+adding 'TowelStuff-0.0.0/setup.py'
+removing 'TowelStuff-0.0.0' (and everything under it)

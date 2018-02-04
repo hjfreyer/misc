@@ -1,0 +1,26 @@
+actionid: py27
+msg: installpkg
+cmdargs: ['/home/hjfreyer/misc/bitcoin/airgap/.tox/py27/bin/pip', 'install', '/home/hjfreyer/misc/bitcoin/airgap/.tox/dist/TowelStuff-0.0.0.zip']
+
+Processing ./.tox/dist/TowelStuff-0.0.0.zip
+Collecting future (from TowelStuff==0.0.0)
+Collecting cryptography (from TowelStuff==0.0.0)
+  Using cached cryptography-2.1.4-cp27-cp27mu-manylinux1_x86_64.whl
+Collecting pycoin (from TowelStuff==0.0.0)
+Collecting asn1crypto>=0.21.0 (from cryptography->TowelStuff==0.0.0)
+  Using cached asn1crypto-0.24.0-py2.py3-none-any.whl
+Collecting idna>=2.1 (from cryptography->TowelStuff==0.0.0)
+  Using cached idna-2.6-py2.py3-none-any.whl
+Collecting ipaddress; python_version < "3" (from cryptography->TowelStuff==0.0.0)
+Requirement already satisfied: six>=1.4.1 in ./.tox/py27/lib/python2.7/site-packages (from cryptography->TowelStuff==0.0.0)
+Collecting cffi>=1.7; platform_python_implementation != "PyPy" (from cryptography->TowelStuff==0.0.0)
+  Downloading cffi-1.11.4-cp27-cp27mu-manylinux1_x86_64.whl (406kB)
+Requirement already satisfied: enum34; python_version < "3" in ./.tox/py27/lib/python2.7/site-packages (from cryptography->TowelStuff==0.0.0)
+Collecting pycparser (from cffi>=1.7; platform_python_implementation != "PyPy"->cryptography->TowelStuff==0.0.0)
+Building wheels for collected packages: TowelStuff
+  Running setup.py bdist_wheel for TowelStuff: started
+  Running setup.py bdist_wheel for TowelStuff: finished with status 'done'
+  Stored in directory: /home/hjfreyer/.cache/pip/wheels/0c/f8/34/f189fa46ed8995b8100960d4830c31a3284d7c7139a2a61a75
+Successfully built TowelStuff
+Installing collected packages: future, asn1crypto, idna, ipaddress, pycparser, cffi, cryptography, pycoin, TowelStuff
+Successfully installed TowelStuff-0.0.0 asn1crypto-0.24.0 cffi-1.11.4 cryptography-2.1.4 future-0.16.0 idna-2.6 ipaddress-1.0.19 pycoin-0.80 pycparser-2.18
