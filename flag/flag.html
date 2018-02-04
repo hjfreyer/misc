@@ -1,0 +1,162 @@
+<html>
+  <body>
+    <canvas id="c" width="800px" height="800px"></canvas>
+    <script>
+
+
+function rect(c, p1, p2) {
+  c.beginPath();
+  c.rect(p1.x, p1.y, p2.x-p1.x, p2.y-p1.y);
+}
+
+function pt(x, y) {
+  return {
+    x: x, y: y
+  };
+}
+
+function translate(p1, p2) {
+  return pt(p1.x+p2.x, p1.y+p2.y);
+}
+
+function scale(factor, p) {
+  return pt(p.x*factor, p.y*factor);
+}
+
+
+function points(x, y, height) {
+  var d = {
+    height: 1,
+    width: 1.5,
+
+    middle: 1/3,
+    torchBaseHeight: 0.3,
+    torchBaseWidth: 0.1,
+
+    torchCrossHeight: 0.1,
+    torchCrossWidth: 0.3,
+
+    flameHeight: 0.2,
+
+  };
+
+  var p = {
+    topSect1: pt(0, 0),
+    topSect2: pt(d.width, (d.height-d.middle)/2),
+
+    middleSect1: pt(0, (d.height-d.middle)/2),
+    middleSect2: pt(d.width, d.height-d.middle),
+
+    botSect1: pt(0, d.height - d.middle),
+    botSect2: pt(d.width, d.height),
+
+    torchBase1: pt((d.width-d.torchBaseWidth)/2, d.height - d.torchBaseHeight),
+    torchBase2: pt((d.width+d.torchBaseWidth)/2, d.height),
+
+    torchCross1: pt((d.width-d.torchCrossWidth)/2, d.height - d.torchCrossHeight - d.torchBaseHeight),
+    torchCross2: pt((d.width+d.torchCrossWidth)/2, d.height - d.torchBaseHeight),
+  }
+
+  for (var pn in p) {
+    p[pn] = translate(pt(x, y), scale(height, p[pn]));
+  }
+
+  return p;
+}
+
+
+//function
+
+function drawFlag(c, x, y, height) {
+  var p = points(x, y, height);
+
+  // Outline.
+  c.beginPath();
+  c.rect(x, y, height*1.5, height);
+  c.lineWidth = 1;
+  c.lineJoin = 'miter';
+  c.strokeStyle = 'black';
+  c.stroke();
+
+  // Background.
+  rect(c, p.topSect1, p.topSect2);
+  c.fillStyle = 'blue';
+  c.fill();
+
+  rect(c, p.middleSect1, p.middleSect2);
+  c.fillStyle = 'white';
+  c.fill();
+
+  rect(c, p.botSect1, p.botSect2);
+  c.fillStyle = 'orange';
+  c.fill();
+
+  // Torch.
+  rect(c, p.torchBase1, p.torchBase2)
+  c.fillStyle = 'green';
+  c.fill();
+
+
+  rect(c, p.torchCross1, p.torchCross2)
+  c.fillStyle = 'green';
+  c.fill();
+
+  // c.beginPath();
+  // c.rect(x+(width-d.torchCrossWidth)/2, y+height-d.torchBaseHeight-d.torchCrossHeight, d.torchCrossWidth, d.torchCrossHeight);
+  // c.fillStyle = 'green';
+  // c.fill();
+  //
+  // c.beginPath();
+  // drawFlame(c, x+width/2, y+, 100);
+  // c.fillStyle='yellow';
+  // c.fill();
+};
+
+function drawFlame(c, x, y, height) {
+  var pts = {
+    top: pt(95, 0),
+    bot: pt(0, 698),
+
+    rcp1: pt(217, 223),
+    rcp2: pt(156, 494),
+    lcp1: pt(-413, 434),
+    lcp2: pt(46, 206),
+  };
+
+  for (var p in pts) {
+    pts[p] = translate(pt(x, y), scale(height/698, pts[p]));
+  }
+
+  c.moveTo(pts.top.x, pts.top.y);
+  bezier(c, pts.rcp1, pts.rcp2, pts.bot);
+  bezier(c, pts.lcp1, pts.lcp2, pts.top);
+}
+
+function bezier(c, cp1, cp2, end) {
+  c.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
+}
+
+var canvas = document.getElementById("c");
+var c = canvas.getContext('2d');
+drawFlag(c, 10, 10, 500);
+
+//curveWidth:1
+//501, 785, 88, 521, 547, 293, 596, 87,
+//596, 87, 718, 310, 657, 581, 501, 785,
+
+//curveWidth:5
+
+// curveWidth:1
+//  312, 433, 534, 316
+//  606, 520, 622, 322
+
+
+
+
+    </script>
+
+    <style>
+      #c { margin: 10px}
+    </style>
+  </body>
+</html>
