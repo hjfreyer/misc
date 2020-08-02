@@ -1,0 +1,19 @@
+{
+  "name": "architecture",
+  "version": "1.0.0",
+  "description": "",
+  "main": "4251hunter.js",
+  "scripts": {
+    "gen": "node 4251hunter.js",
+    "watch": "npm-watch"
+  },
+  "watch": {
+    "gen": "*.js"
+  },
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "makerjs": "^0.17.0",
+    "watch": "^1.0.2"
+  }
+}
