@@ -2,18 +2,17 @@
   "name": "architecture",
   "version": "1.0.0",
   "description": "",
-  "main": "4251hunter.js",
+  "main": "4251hunter.ts",
   "scripts": {
-    "gen": "node 4251hunter.js",
-    "watch": "npm-watch"
-  },
-  "watch": {
-    "gen": "*.js"
+    "gen": "ts-node 4251hunter.ts",
+    "dev": "light-server -s . -p 8080 -w \"*.ts # npm run gen\""
   },
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
+    "light-server": "^2.8.0",
     "makerjs": "^0.17.0",
-    "watch": "^1.0.2"
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.7"
   }
 }
