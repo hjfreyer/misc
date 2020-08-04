@@ -64,6 +64,8 @@ function walkin() : m.IModel {
     .rotate(270)
   	.move([width - ftin(0, 7.75) - ft(4), -ftin(0, 3)])
     .addTo(res, 'door2');
+
+  addSizeCaption(res, "C");
   
   return res;
 }
@@ -101,7 +103,7 @@ function bedroom() : m.IModel {
     .rotate(0)
     .move([0, right - ftin(1, 5) - ftin(2, 10)])
     .addTo(res, 'entrydoor');
-
+  addSizeCaption(res, "BED");
   return res;  
 }
 
@@ -122,6 +124,7 @@ function ensuite(): m.IModel {
     .move([ftin(2, 2.5)+ftin(2, 10), 0])
     .addTo(res, 'door');
 
+  addSizeCaption(res, "BTH2");
   return res;  
 }
 
@@ -143,32 +146,78 @@ function bath(): m.IModel {
     .move([ftin(0, 4), 0])
     .addTo(res, 'door');
 
+  addSizeCaption(res, "BTH1");
   return res;  
+}
+
+function toFtIn(measure: number): [number, number] {
+  return [Math.floor(measure / 12), measure % 12];
+}
+
+function addSizeCaption(model : m.IModel, name: string): void {
+  const ext = m.measure.modelExtents(model);
+
+  const [wft, win] = toFtIn(ext.width);
+  const [hft, hin] = toFtIn(ext.height);
+
+  model.caption = {
+    text: `${name}: ${wft}'${win}" x ${hft}'${hin}"`,
+    anchor: new m.paths.Line(ext.center, ext.center),
+  }
 }
 
 function living(): m.IModel {
   const res = empty();
 
   const w = ftin(14, 11);
-  const h = ftin(28, 5);
-  m.$(new m.models.ConnectTheDots(false, [
-      [0, 0],
-      [0, h - ftin(8, 9)],
-      [ft(1), h - ftin(8, 9)],
-      [ft(1), h],
-      [ft(10) - ftin(0, 6), h],  // 6 is made up
-      [ft(10) - ftin(0, 6), h - ftin(2, 2)],
-      [ft(10), h - ftin(2, 2)],
-      [ft(10), h],
-      [w, h],
-      [w, ft(19)],
-  ])).addTo(res, 'outline1');
+  const h = ftin(19, 8);
+  res.models = {
+    outline1: new m.models.ConnectTheDots(false, [
+        [0, h],
+        [0, 0],
+        [w, 0],
+        [w, ft(15)],
+    ]),
+    outline2: new m.models.ConnectTheDots(false, [
+        [w, ft(19)],
+        [w, h],
+    ])
+  }
 
-  m.$(new m.models.ConnectTheDots(false, [
-      [w, ft(15)],
-      [w, 0],
-      [0, 0],
-  ])).addTo(res, 'outline2');
+  addSizeCaption(res, 'LVRM');
+  return res;
+//  return m.$(res).addCaption(`14'11" x 19'8"`, ext.center, ext.center).$result;
+  // m.$(door(ftin(2, 10)))
+  //   .move([ftin(0, 4), 0])
+  //   .addTo(res);
+
+}
+
+function kitchen(): m.IModel {
+  const res = empty();
+
+
+  const w = ftin(14, 11);
+  const h = ftin(8, 9);
+  res.models = {
+    outline1: new m.models.ConnectTheDots(false, [
+        [0, 0],
+        [ft(1), 0],
+        [ft(1), h],
+        [ft(10) - ftin(0, 6), h],  // 6 is made up
+        [ft(10) - ftin(0, 6), h - ftin(2, 2)],
+        [ft(10), h - ftin(2, 2)],
+        [ft(10), h],
+        [w, h],
+        [w, 0],
+    ]),
+
+    // outline2: new m.models.ConnectTheDots(false, [
+    //     [w, ft(15)],
+    //     [w, 0],
+    //     [0, 0],
+    // ])
+  }
 
   m.$(new m.models.Rectangle(ft(9), ftin(3, 2)))
     .move([ft(1), h - ftin(8, 9)])
@@ -178,11 +227,14 @@ function living(): m.IModel {
     .move([ft(1), h - ftin(1, 11)])
     .addTo(res, 'cooktop');
 
+  addSizeCaption(res, "KT")
+
+  return res;
+
   // m.$(door(ftin(2, 10)))
   //   .move([ftin(0, 4), 0])
   //   .addTo(res);
 
-  return res;  
 }
 
 function cfr(): m.IModel {
@@ -202,7 +254,7 @@ function cfr(): m.IModel {
     .rotate(270)
     .move([ftin(0, 4.5), ftin(12, 7) + ftin(2, 4)])
     .addTo(res, 'door');
-
+  addSizeCaption(res, "CFR");
   return res;  
 }
 
@@ -216,37 +268,41 @@ function empty() : m.IModel {
 }
 
 function apartment() : m.IModel {
-  var res = empty();
-    //makerjs.$(outline()).addTo(this, "outline");
+  return m.$({
+    models: {
+      walkin: m.$(walkin())
+        .move([FULL_WIDTH - ftin(4, 10), ftin(20, 3)])
+        .$result,
+      kitchen: m.$(kitchen())
+        .move([0, ftin(19, 8)])
+        .$result,
+      cfr:  m.$(cfr())
+        .move([ftin(15, 9) - ftin(0, 4.5) - ftin(0, 4), 0])
+        .$result,
+      bedroom:  m.$(bedroom())
+        .move([FULL_WIDTH - ftin(11, 6)- ftin(2, 2.5), 0])
+        .$result,
     
-  m.$(walkin())
-    .move([FULL_WIDTH - ftin(4, 10), ftin(20, 3)])
-    .addTo(res, "walkin");
+      ensuite: m.$(ensuite())
+        .move([FULL_WIDTH - ftin(11, 6)- ftin(2, 2.5), FULL_HEIGHT - ftin(8, 9)])
+        .$result,
 
-  m.$(bedroom())
-    .move([FULL_WIDTH - ftin(11, 6)- ftin(2, 2.5), 0])
-    .addTo(res, "bedroom");
-  
-  m.$(ensuite())
-    .move([FULL_WIDTH - ftin(11, 6)- ftin(2, 2.5), FULL_HEIGHT - ftin(8, 9)])
-    .addTo(res, "ensuite");
+      bath: m.$(bath())
+        .move([ft(10) + ftin(4, 9) + ftin(3, 6) - ftin(0, 4), FULL_HEIGHT - ftin(9, 7)])
+        .$result,
 
-  m.$(bath())
-    .move([ft(10) + ftin(4, 9) + ftin(3, 6) - ftin(0, 4), FULL_HEIGHT - ftin(9, 7)])
-    .addTo(res, "bath");
-
-  m.$(cfr())
-    .move([ftin(15, 9) - ftin(0, 4.5) - ftin(0, 4), 0])
-    .addTo(res, "cfr");
-
-  m.$(living())
-    .addTo(res, "living");
-
-  return res;
+      living: m.$(living())
+        .$result,
+    }
+  })
+    .originate()
+    .$result;
 }
 
 function main() : m.IModel {
-  return apartment();
+  const res = apartment();
+
+  return res;
 }
 
 fs.writeFile("4251hunter.svg", m.exporter.toSVG(main(), {
