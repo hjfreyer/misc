@@ -4,14 +4,17 @@
   "description": "",
   "main": "4251hunter.ts",
   "scripts": {
-    "gen": "ts-node 4251hunter.ts",
-    "dev": "light-server -s . -p 8080 -w \"*.ts # npm run gen\""
+    "gen": "ts-node dream/dream3d.ts",
+    "dev": "light-server -s . -p 8080 -w \"*.{ts,html} # npm run gen\""
   },
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
+    "@jscad/json-serializer": "../../OpenJSCAD.org/packages/io/json-serializer",
+    "@jscad/modeling": "../../OpenJSCAD.org/packages/modeling",
     "light-server": "^2.8.0",
     "makerjs": "^0.17.0",
+    "three": "^0.119.1",
     "ts-node": "^8.10.2",
     "typescript": "^3.9.7"
   }
