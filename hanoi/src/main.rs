@@ -124,7 +124,24 @@ macro_rules! sentence {
     ($head:tt $($tail:tt)*) => {
         Sentence::Sentence(vec![phrase!($head), sentence!($($tail)*)])
     };
+}
 
+macro_rules! paragraph {
+    () => {
+        Sentence::Sentence(vec![])
+    };
+    (@accum () -> ($($a:tt)*)) => {
+        sentence!($($a)*)
+    };
+    (@accum (; $($tail:tt)*) -> ($($a:tt)*)) => {
+        Sentence::Sentence(vec![Sentence::Word(Word::Push(Value::Quote(Box::new(paragraph!($($tail)*))))), sentence!($($a)*)])
+    }; 
+    (@accum ($head:tt $($tail:tt)*) -> ($($a:tt)*)) => {
+        paragraph!(@accum ($($tail)*) -> ($($a)* $head))
+    };
+    ($($tail:tt)*) => {
+        paragraph!(@accum ($($tail)*) -> () )
+    };
 }
 
 #[derive(Debug, Clone)]
@@ -153,12 +170,21 @@ fn main() {
 
     let mut prog = sentence!({{{double {halt} copy(1) 2 copy(4) set_mem} 1 copy(2) get_mem} 12 1 copy(3) set_mem} 4 malloc);
 
+    let mut prog: Sentence = paragraph!{
+        4 malloc;
+        12 1 copy(3) set_mem;
+        1 copy(2) get_mem;
+        copy(1) drop(2) double 2 copy(3) set_mem;
+        halt
+    };
     let mut stack = vec![];
     let mut arena = Arena { buffers: vec![] };
 
     loop {
         for w in flatten(prog) {
-            eval(&mut stack, w)
+            println!("{:?}", w);
+            eval(&mut stack, w);
+            println!("{:?}", stack);
         }
         match stack.pop().unwrap() {
             Value::Symbol(s) if s == "malloc" => {
