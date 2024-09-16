@@ -1,28 +1,35 @@
 #![allow(unused)]
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Word {
     Add,
     Push(Value),
     Cons,
     Snoc,
+    Eq,
     Copy(usize),
     Drop(usize),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Value {
     Symbol(&'static str),
     Usize(usize),
     List(Vec<Value>),
     Quote(Box<Sentence>),
     Handle(usize),
+    Bool(bool),
 }
 
-#[derive(Debug, Clone)]
-enum Sentence {
-    Word(Word),
-    Sentence(Vec<Sentence>),
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Sentence(Vec<Word>);
+
+impl Sentence {
+    fn push(&mut self, s: impl Into<Sentence>) {
+        for w in s.into().0 {
+            self.0.push(w)
+        }
+    }
 }
 
 fn eval(stack: &mut Vec<Value>, w: Word) {
@@ -59,13 +66,15 @@ fn eval(stack: &mut Vec<Value>, w: Word) {
             stack.push(Value::List(list));
             stack.push(car);
         }
-    }
-}
-
-fn flatten(sentence: Sentence) -> Vec<Word> {
-    match sentence {
-        Sentence::Word(w) => vec![w],
-        Sentence::Sentence(s) => s.into_iter().flat_map(|s| flatten(s).into_iter()).collect(),
+        Word::Eq => {
+            let Some(a) = stack.pop() else {
+                panic!("bad value")
+            };
+            let Some(b) = stack.pop() else {
+                panic!("bad value")
+            };
+            stack.push(Value::Bool(a == b));
+        }
     }
 }
 
@@ -83,64 +92,73 @@ impl From<usize> for Word {
 
 impl From<usize> for Sentence {
     fn from(value: usize) -> Self {
-        Self::Word(value.into())
-    }
-}
-
-impl<I> FromIterator<I> for Sentence
-where
-    I: Into<Sentence>,
-{
-    fn from_iter<T: IntoIterator<Item = I>>(iter: T) -> Self {
-        Sentence::Sentence(iter.into_iter().map(|x| x.into()).collect())
+        Self(vec![value.into()])
     }
 }
 
 macro_rules! phrase {
     (copy($idx:expr)) => {
-        Sentence::Word(Word::Copy($idx))
+        Sentence(vec![Word::Copy($idx)])
     };
     (drop($idx:expr)) => {
-        Sentence::Word(Word::Drop($idx))
+        Sentence(vec![Word::Drop($idx)])
     };
     ($name:ident) => {
-        $name.clone().into()
+        Sentence::from($name.clone())
     };
     ($name:expr) => {
-        $name.clone().into()
+        Sentence::from($name.clone())
     };
 }
 
-macro_rules! sentence {
-    () => {
-        Sentence::Sentence(vec![])
-    };
-    ({$($quote:tt)*} $($tail:tt)*) => {
-        Sentence::Sentence(vec![Sentence::Word(Word::Push(Value::Quote(Box::new(sentence!($($quote)*))))), sentence!($($tail)*)])
-    };
-    ($flike:ident($($head:tt)*) $($tail:tt)*) => {
-        Sentence::Sentence(vec![phrase!($flike($($head)*)), sentence!($($tail)*)])
-    };
-    ($head:tt $($tail:tt)*) => {
-        Sentence::Sentence(vec![phrase!($head), sentence!($($tail)*)])
-    };
+macro_rules! sentcat {
+    ($($part:expr,)*) => {{
+        let mut res = Sentence(vec![]);
+        $(res.push($part);)*
+        res
+    }};
+}
+
+impl From<Word> for Sentence {
+    fn from(value: Word) -> Self {
+        {
+            let w = value;
+            Sentence(vec![w])
+        }
+    }
 }
 
 macro_rules! paragraph {
-    () => {
-        Sentence::Sentence(vec![])
+    (@sent ()) => {
+        sentcat![]
     };
-    (@accum () -> ($($a:tt)*)) => {
-        sentence!($($a)*)
+    (@sent ({$($quote:tt)*} $($tail:tt)*)) => {
+        sentcat![Word::Push(Value::Quote(Box::new(paragraph!($($quote)*)))), paragraph!(@sent ($($tail)*)), ]
     };
-    (@accum (; $($tail:tt)*) -> ($($a:tt)*)) => {
-        Sentence::Sentence(vec![Sentence::Word(Word::Push(Value::Quote(Box::new(paragraph!($($tail)*))))), sentence!($($a)*)])
-    }; 
-    (@accum ($head:tt $($tail:tt)*) -> ($($a:tt)*)) => {
-        paragraph!(@accum ($($tail)*) -> ($($a)* $head))
+    (@sent ($flike:ident($($head:tt)*) $($tail:tt)*)) => {
+        sentcat![phrase!($flike($($head)*)), paragraph!(@sent ($($tail)*)), ]
+    };
+    (@sent ($head:tt $($tail:tt)*)) => {
+        sentcat![phrase!($head), paragraph!(@sent ($($tail)*)), ]
+    };
+    (@para (if { $($cond:tt)* } {$($true_case:tt)*} else {$($false_case:tt)*}) ()) => {
+        sentcat![
+            paragraph!($($cond)*),
+            Word::Push(Value::Quote(Box::new(paragraph!($($true_case)*)))),
+            Word::Push(Value::Quote(Box::new(paragraph!($($false_case)*)))),
+            Word::Push(Value::Symbol("if")), ]
+    };
+    (@para ($($a:tt)*) ()) => {
+        paragraph!(@sent ($($a)*))
+    };
+    (@para ($($a:tt)*) (; $($tail:tt)*)) => {
+        sentcat![Word::Push(Value::Quote(Box::new(paragraph!($($tail)*)))), paragraph!(@sent ($($a)*)), ]
+    };
+    (@para ($($a:tt)*) ($head:tt $($tail:tt)*)) => {
+        paragraph!(@para ($($a)* $head) ($($tail)*))
     };
     ($($tail:tt)*) => {
-        paragraph!(@accum ($($tail)*) -> () )
+        paragraph!(@para () ($($tail)*))
     };
 }
 
@@ -155,36 +173,56 @@ struct Buffer {
 }
 
 fn main() {
-    let add = Sentence::Word(Word::Add);
-    let cons = Sentence::Word(Word::Cons);
-    let snoc = Sentence::Word(Word::Snoc);
+    let add = {
+        let w = Word::Add;
+        Sentence(vec![w])
+    };
+    let cons = {
+        let w = Word::Cons;
+        Sentence(vec![w])
+    };
+    let snoc = {
+        let w = Word::Snoc;
+        Sentence(vec![w])
+    };
+    let eq = {
+        let w = Word::Eq;
+        Sentence(vec![w])
+    };
 
-    let halt = Sentence::Word(Word::Push(Value::Symbol("halt")));
-    let malloc = Sentence::Word(Word::Push(Value::Symbol("malloc")));
-    let get_mem = Sentence::Word(Word::Push(Value::Symbol("get_mem")));
-    let set_mem = Sentence::Word(Word::Push(Value::Symbol("set_mem")));
+    let halt = Word::Push(Value::Symbol("halt"));
+    let malloc = Word::Push(Value::Symbol("malloc"));
+    let get_mem = Word::Push(Value::Symbol("get_mem"));
+    let set_mem = Word::Push(Value::Symbol("set_mem"));
+    let if_ = Word::Push(Value::Symbol("if"));
 
-    let double = sentence!(copy(0) add);
+    let double = paragraph!(copy(0) add halt);
 
-    let swap = sentence!(copy(1) drop(2));
+    let swap = paragraph!(copy(1) drop(2));
 
-    let mut prog = sentence!({{{double {halt} copy(1) 2 copy(4) set_mem} 1 copy(2) get_mem} 12 1 copy(3) set_mem} 4 malloc);
+    let mut prog = paragraph!({{{double {halt} copy(1) 2 copy(4) set_mem} 1 copy(2) get_mem} 12 1 copy(3) set_mem} 4 malloc);
 
-    let mut prog: Sentence = paragraph!{
+    let mut prog: Sentence = paragraph! {
+        // 4
         4 malloc;
         12 1 copy(3) set_mem;
         1 copy(2) get_mem;
-        copy(1) drop(2) double 2 copy(3) set_mem;
-        halt
+        if { double halt eq } {
+            copy(1) 2 copy(4) set_mem;
+            halt
+        } else {
+            halt
+        }
     };
     let mut stack = vec![];
     let mut arena = Arena { buffers: vec![] };
 
     loop {
-        for w in flatten(prog) {
+        for w in prog.0 {
             println!("{:?}", w);
             eval(&mut stack, w);
             println!("{:?}", stack);
+            println!("");
         }
         match stack.pop().unwrap() {
             Value::Symbol(s) if s == "malloc" => {
@@ -236,6 +274,22 @@ fn main() {
                 stack.push(Value::Usize(buf.mem[offset]));
 
                 prog = *next;
+            }
+            Value::Symbol(s) if s == "if" => {
+                let Some(Value::Quote(false_case)) = stack.pop() else {
+                    panic!()
+                };
+                let Some(Value::Quote(true_case)) = stack.pop() else {
+                    panic!()
+                };
+                let Some(Value::Bool(cond)) = stack.pop() else {
+                    panic!()
+                };
+                if cond {
+                    prog = *true_case;
+                } else {
+                    prog = *false_case;
+                }
             }
             Value::Symbol(s) if s == "halt" => break,
             _ => panic!(),
