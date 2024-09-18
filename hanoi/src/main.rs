@@ -1,6 +1,17 @@
 #![allow(unused)]
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+struct Library {
+    decls: Vec<Decl>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Decl {
+    name: String,
+    value: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Word {
     Add,
     Push(Value),
@@ -19,15 +30,45 @@ enum Value {
     Symbol(&'static str),
     Usize(usize),
     List(Vec<Value>),
-    Quote(Box<Sentence>),
+    Quote(Box<Code>),
     Handle(usize),
     Bool(bool),
+    Reference(String),
+}
+
+impl Value {
+    fn into_code(self, lib: &Library) -> Option<Code> {
+        match self {
+            Value::Quote(code) => Some(*code),
+            Value::Reference(name) => Some(
+                lib.decls
+                    .iter()
+                    .find_map(|d| {
+                        if d.name == name {
+                            let Value::Quote(code) = d.value.clone() else {
+                                panic!()
+                            };
+                            Some(*code)
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap(),
+            ),
+            Value::Symbol(_)
+            | Value::Usize(_)
+            | Value::List(_)
+            | Value::Bool(_)
+            | Value::Handle(_) => None,
+        }
+    }
 }
 
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Symbol(arg0) => write!(f, "'{}", arg0),
+            Self::Reference(arg0) => write!(f, "{}", arg0),
+            Self::Symbol(arg0) => write!(f, "*{}", arg0),
             Self::Usize(arg0) => write!(f, "{}", arg0),
             Self::List(arg0) => f.debug_tuple("List").field(arg0).finish(),
             Self::Quote(arg0) => write!(f, "{{{:?}}}", arg0),
@@ -85,7 +126,7 @@ macro_rules! sentcat {
     }};
 }
 
-fn eval(stack: &mut Vec<Value>, w: Word) {
+fn eval(lib: &Library, stack: &mut Vec<Value>, w: Word) {
     match w {
         Word::Add => {
             let Some(Value::Usize(a)) = stack.pop() else {
@@ -138,11 +179,9 @@ fn eval(stack: &mut Vec<Value>, w: Word) {
             stack.push(Value::Bool(a == b));
         }
         Word::Curry => {
-            let Some(Value::Quote(code)) = stack.pop() else {
-                panic!()
-            };
+            let code = stack.pop().unwrap().into_code(lib).unwrap();
             let Some(val) = stack.pop() else { panic!() };
-            stack.push(Value::Quote(Box::new(sentcat![Word::Push(val), *code,])))
+            stack.push(Value::Quote(Box::new(Code::Curried(val, Box::new(code)))));
         }
     }
 }
@@ -166,22 +205,80 @@ impl From<usize> for Sentence {
 }
 
 macro_rules! phrase {
+    (add) => {
+        Word::Add
+    };
+    (curry) => {
+        Word::Curry
+    };
     (copy($idx:expr)) => {
-        Sentence(vec![Word::Copy($idx)])
+        Word::Copy($idx)
     };
     (drop($idx:expr)) => {
-        Sentence(vec![Word::Drop($idx)])
+        Word::Drop($idx)
     };
     (mv($idx:expr)) => {
-        Sentence(vec![Word::Move($idx)])
+        Word::Move($idx)
+    };
+    (* $name:ident) => {
+        Word::Push(Value::Symbol(stringify!($name)))
+    };
+    (# $val:expr) => {
+        Word::Push(Value::from($val))
     };
     ($name:ident) => {
-        Sentence::from($name.clone())
-    };
-    ($name:expr) => {
-        Sentence::from($name.clone())
+        Word::Push(Value::Reference(stringify!($name).to_string()))
     };
 }
+
+macro_rules! value {
+    (@phrasecat ($($phrase:tt)*) ($($tail:tt)*) ) => {
+        {
+            let mut res :Sentence= Sentence(vec![]);
+            res.push(phrase!($($phrase)*));
+            res.push(value!(@sent ($($tail)*)));
+            res
+        }
+    };
+    (@sent ()) => { Sentence(vec![]) };
+
+    (@sent (* $symbol:ident $($tail:tt)*)) => {
+        value!(@phrasecat (* $symbol) ($($tail)*))
+    };
+    (@sent (# $val:tt $($tail:tt)*)) => {
+        value!(@phrasecat (# $val) ($($tail)*))
+    };
+    (@sent ($flike:ident($($head:tt)*) $($tail:tt)*)) => {
+        value!(@phrasecat ($flike($($head)*)) ($($tail)*))
+    };
+    (@sent ($head:tt $($tail:tt)*)) => {
+        value!(@phrasecat ($head) ($($tail)*))
+    };
+    (@code ($($a:tt)*) ()) => {
+        Code::Sentence(
+            value!(@sent ($($a)*)),
+        )
+    };
+    (@code ($($a:tt)*) (; $($tail:tt)*)) => {
+        Code::AndThen(
+            value!(@sent ($($a)*)),
+            Box::new(value!(@code () ($($tail)*)))
+        )
+    };
+    (@code ($($a:tt)*) ($head:tt $($tail:tt)*)) => {
+        value!(@code ($($a)* $head) ($($tail)*))
+    };
+    ($i:ident) => {
+        Value::Reference(stringify!($i))
+    };
+    ({$($code:tt)*}) => {
+        Value::Quote(Box::new(value!(@code () ($($code)*))))
+    };
+    ($e:expr) => {
+        Value::from($e)
+    };
+}
+
 impl From<Word> for Sentence {
     fn from(value: Word) -> Self {
         {
@@ -191,37 +288,62 @@ impl From<Word> for Sentence {
     }
 }
 
-macro_rules! paragraph {
-    (@sent ()) => {
-        sentcat![]
+#[derive(Clone, PartialEq, Eq)]
+enum Code {
+    Sentence(Sentence),
+    AndThen(Sentence, Box<Code>),
+    Curried(Value, Box<Code>),
+}
+
+impl Code {
+    fn into_words(self) -> Vec<Word> {
+        match self {
+            Code::Sentence(sentence) => sentence.0,
+            Code::AndThen(sentence, code) => {
+                let mut res = vec![Word::Push(Value::Quote(code))];
+                res.extend(sentence.0);
+                res
+            }
+            Code::Curried(value, code) => {
+                let mut res = vec![Word::Push(value)];
+                res.extend(code.into_words());
+                res
+            }
+        }
+    }
+}
+
+impl std::fmt::Debug for Code {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sentence(arg0) => arg0.fmt(f),
+            Self::AndThen(arg0, arg1) => write!(f, "{:?}; {:?}", arg0, arg1),
+            Self::Curried(arg0, arg1) => write!(f, "[{:?}]({:?})", arg0, arg1),
+        }
+    }
+}
+
+macro_rules! lib {
+    (@lib () ()) => {
+        Library {
+            decls: vec![],
+        }
     };
-    (@sent ({$($quote:tt)*} $($tail:tt)*)) => {
-        sentcat![Word::Push(Value::Quote(Box::new(paragraph!($($quote)*)))), paragraph!(@sent ($($tail)*)), ]
+    (@lib (let $name:ident = $val:tt;) ($($tail:tt)*)) => {
+        {
+            let mut lib = lib!($($tail)*);
+            lib.decls.insert(0, Decl {
+                name: stringify!($name).to_string(),
+                value: value!($val),
+            });
+            lib
+        }
     };
-    (@sent ($flike:ident($($head:tt)*) $($tail:tt)*)) => {
-        sentcat![phrase!($flike($($head)*)), paragraph!(@sent ($($tail)*)), ]
-    };
-    (@sent ($head:tt $($tail:tt)*)) => {
-        sentcat![phrase!($head), paragraph!(@sent ($($tail)*)), ]
-    };
-    (@para (if { $($cond:tt)* } {$($true_case:tt)*} else {$($false_case:tt)*}) ()) => {
-        sentcat![
-            paragraph!($($cond)*),
-            Word::Push(Value::Quote(Box::new(paragraph!($($true_case)*)))),
-            Word::Push(Value::Quote(Box::new(paragraph!($($false_case)*)))),
-            Word::Push(Value::Symbol("if")), ]
-    };
-    (@para ($($a:tt)*) ()) => {
-        paragraph!(@sent ($($a)*))
-    };
-    (@para ($($a:tt)*) (; $($tail:tt)*)) => {
-        sentcat![Word::Push(Value::Quote(Box::new(paragraph!($($tail)*)))), paragraph!(@sent ($($a)*)), ]
-    };
-    (@para ($($a:tt)*) ($head:tt $($tail:tt)*)) => {
-        paragraph!(@para ($($a)* $head) ($($tail)*))
+    (@lib ($($a:tt)*) ($head:tt $($tail:tt)*)) => {
+        lib!(@lib ($($a)* $head) ($($tail)*))
     };
     ($($tail:tt)*) => {
-        paragraph!(@para () ($($tail)*))
+        lib!(@lib () ($($tail)*))
     };
 }
 
@@ -235,7 +357,7 @@ struct Buffer {
     mem: Vec<usize>,
 }
 
-fn control_flow(stack: &mut Vec<Value>, arena: &mut Arena) -> Option<Sentence> {
+fn control_flow(lib: &Library, stack: &mut Vec<Value>, arena: &mut Arena) -> Option<Vec<Word>> {
     let Some(Value::Symbol(op)) = stack.pop() else {
         panic!("bad value")
     };
@@ -244,16 +366,14 @@ fn control_flow(stack: &mut Vec<Value>, arena: &mut Arena) -> Option<Sentence> {
             let Some(Value::Usize(size)) = stack.pop() else {
                 panic!()
             };
-            let Some(Value::Quote(next)) = stack.pop() else {
-                panic!()
-            };
+            let next = stack.pop().unwrap().into_code(lib).unwrap();
 
             let handle = Value::Handle(arena.buffers.len());
 
             arena.buffers.push(Buffer { mem: vec![0; size] });
 
             stack.push(handle);
-            Some(*next)
+            Some(next.into_words())
         }
         "set_mem" => {
             let Some(Value::Handle(handle)) = stack.pop() else {
@@ -265,14 +385,12 @@ fn control_flow(stack: &mut Vec<Value>, arena: &mut Arena) -> Option<Sentence> {
             let Some(Value::Usize(value)) = stack.pop() else {
                 panic!()
             };
-            let Some(Value::Quote(next)) = stack.pop() else {
-                panic!()
-            };
+            let next = stack.pop().unwrap().into_code(lib).unwrap();
 
             let buf = arena.buffers.get_mut(handle).unwrap();
             buf.mem[offset] = value;
 
-            Some(*next)
+            Some(next.into_words())
         }
         "get_mem" => {
             let Some(Value::Handle(handle)) = stack.pop() else {
@@ -281,36 +399,28 @@ fn control_flow(stack: &mut Vec<Value>, arena: &mut Arena) -> Option<Sentence> {
             let Some(Value::Usize(offset)) = stack.pop() else {
                 panic!()
             };
-            let Some(Value::Quote(next)) = stack.pop() else {
-                panic!()
-            };
+            let next = stack.pop().unwrap().into_code(lib).unwrap();
 
             let buf = arena.buffers.get_mut(handle).unwrap();
             stack.push(Value::Usize(buf.mem[offset]));
 
-            Some(*next)
+            Some(next.into_words())
         }
         "if" => {
-            let Some(Value::Quote(false_case)) = stack.pop() else {
-                panic!()
-            };
-            let Some(Value::Quote(true_case)) = stack.pop() else {
-                panic!()
-            };
+            let false_case = stack.pop().unwrap().into_code(lib).unwrap();
+            let true_case = stack.pop().unwrap().into_code(lib).unwrap();
             let Some(Value::Bool(cond)) = stack.pop() else {
                 panic!()
             };
             if cond {
-                Some(*true_case)
+                Some(true_case.into_words())
             } else {
-                Some(*false_case)
+                Some(false_case.into_words())
             }
         }
         "exec" => {
-            let Some(Value::Quote(next)) = stack.pop() else {
-                panic!()
-            };
-            Some(*next)
+            let next = stack.pop().unwrap().into_code(lib).unwrap();
+            Some(next.into_words())
         }
         "halt" => None,
         _ => panic!(),
@@ -346,70 +456,97 @@ fn main() {
     let eos = Word::Push(Value::Symbol("eos"));
     let panic = Word::Push(Value::Symbol("panic"));
 
-    let double = paragraph!(copy(0) add halt);
+    let lib = lib! {
+        let test_malloc = {
+            #4 *malloc;
+            #12 #1 mv(3) *set_mem;
+            *halt
+        };
 
-    let swap = Word::Swap;
+        let count = {
+            // (caller next)
+            #1
+            // (caller next 1)
+            mv(2)
+            // (next 1 caller)
+            *exec;
+            #2 mv(2) *exec;
+            #3 mv(2) *exec;
+            *eos
+        };
 
-    let inc = paragraph! { 1 add };
+        let evens_step = {
+            // (caller countnext i mynext)
+            mv(1) copy(0) add
+            // (caller countnext mynext 2*i)
+            mv(2) mv(2)
+            // (caller 2*i countnext mynext)
+            curry
+            // (caller 2*i evensnext)
+            mv(1) mv(2)
+            // (evensnext 2*i caller)
+            *exec
+        };
 
-    let count: Sentence = paragraph! {
-        // (caller next)
-        1
-        // (caller next 1)
-        mv(2)
-        // (next 1 caller)
-        exec;
-        2 mv(2) exec;
-        3 mv(2) exec;
-        eos
+        let evens = {
+            // (caller mynext)
+            count *exec;
+            // (caller countnext 1 mynext)
+            evens_step *exec;
+            // (caller countnext mynext)
+            mv(1)
+            // (caller mynext countnext)
+            *exec
+            ;
+            evens_step *exec;
+            mv(1) *exec;
+            evens_step *exec;
+        };
+
+        let main = {
+            evens *exec;
+            drop(1) mv(1) *exec;
+            drop(1) mv(1) *exec;
+           *halt
+        };
     };
 
-    let evens_step = paragraph! {
-        // (caller countnext i mynext)
-        swap copy(0) add
-        // (caller countnext mynext 2*i)
-        mv(2) mv(2)
-        // (caller 2*i countnext mynext)
-        curry
-        // (caller 2*i evensnext)
-        mv(1) mv(2)
-        // (evensnext 2*i caller)
-        exec
-    };
+    println!("{:?}", lib);
+    // let inc = paragraph! { 1 add };
 
-    let evens: Sentence = paragraph! {
-        // (caller mynext)
-        count;
-        // (caller countnext 1 mynext)
-        evens_step;
-        // (caller countnext mynext)
-        swap
-        // (caller mynext countnext)
-        exec
-        ;
-        evens_step;
-        swap exec;
-        evens_step;
-    };
+    // let count: Sentence = paragraph! {
+    //     // (caller next)
+    //     1
+    //     // (caller next 1)
+    //     mv(2)
+    //     // (next 1 caller)
+    //     exec;
+    //     2 mv(2) exec;
+    //     3 mv(2) exec;
+    //     eos
+    // };
 
-    let mut prog: Sentence = paragraph! { 
-        evens;
-        drop(1) swap exec;
-        drop(1) swap exec;
-        halt 
-    };
+    // let mut prog: Sentence = paragraph! {
+    //     evens;
+    //     drop(1) swap exec;
+    //     drop(1) swap exec;
+    //     halt
+    // };
+
+    let mut prog: Vec<Word> =
+        sentcat![(Word::Push(lib.decls.last().unwrap().value.clone())), exec,].0;
     let mut stack = vec![];
     let mut arena = Arena { buffers: vec![] };
 
     loop {
-        for w in prog.0 {
+        for w in prog {
             println!("{:?}", w);
-            eval(&mut stack, w);
+            eval(&lib, &mut stack, w);
             println!("{:?}", stack);
             println!("");
         }
 
-        if let Some(next) = control_flow(&mut stack, &mut arena) {
+        if let Some(next) = control_flow(&lib, &mut stack, &mut arena) {
             prog = next;
         } else {
             break;
