@@ -174,48 +174,58 @@ fn main() {
 
         let count = {
             // (caller next)
-            #1
-            // (caller next 1)
-            mv(2)
+            #1 *yield
+            // (caller next 1 *yield)
+            mv(3)
             // (next 1 caller)
             *exec;
-            #2 mv(2) *exec;
-            #3 mv(2) *exec;
-            *eos
+            #2 *yield mv(3) *exec;
+            #3 *yield mv(3) *exec;
+            *eos mv(1) *exec
         };
 
         let evens_step = {
-            // (caller countnext i mynext)
-            mv(1) copy(0) add
-            // (caller countnext mynext 2*i)
-            mv(2) mv(2)
-            // (caller 2*i countnext mynext)
-            curry
-            // (caller 2*i evensnext)
-            mv(1) mv(2)
-            // (evensnext 2*i caller)
-            *exec
+            // (caller (countnext 1 *yield)|(*eos) evensnext)
+            copy(1) *yield eq if {
+                // (caller countnext 1 *yield evensnext)
+                mv(2) copy(0) add mv(2)
+                // (caller countnext evensnext 2*i *yield)
+                mv(3) mv(3)
+                // (caller 2*i *yield countnext evensnext)
+                curry
+                // (caller 2*i *yield evensnext)
+                mv(2) mv(2) mv(3)
+                // (evensnext 2*i *yield caller)
+                *exec
+            } else {
+                // (caller *eos evensnext)
+                drop(1) mv(1) *exec
+            }
         };
 
         let evens = {
             // (caller mynext)
             count *exec;
-            // (caller countnext 1 mynext)
-            evens_step *exec;
-            // (caller countnext mynext)
-            mv(1)
-            // (caller mynext countnext)
-            *exec
-            ;
+            // (caller (countnext 1 *yield)|(*eos) mynext)
             evens_step *exec;
             mv(1) *exec;
-            evens_step *exec;
+
+            // // (caller countnext 1 *yield mynext)
+            // evens_step *exec;
+            // // (caller countnext mynext)
+            // mv(1)
+            // // (caller mynext countnext)
+            // *exec
+            // ;
+            // evens_step *exec;
+            // mv(1) *exec;
+            // evens_step *exec;
         };
 
         let main = {
             evens *exec;
-            drop(1) mv(1) *exec;
-            drop(1) mv(1) *exec;
+            drop(1) drop(1) mv(1) *exec;
+            drop(1) drop(1) mv(1) *exec;
            *halt
         };
     };

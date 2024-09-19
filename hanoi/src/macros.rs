@@ -5,6 +5,9 @@ macro_rules! phrase {
     (curry) => {
         Word::Curry
     };
+    (eq) => {
+        Word::Eq
+    };
     (copy($idx:expr)) => {
         Word::Copy($idx)
     };
@@ -58,6 +61,13 @@ macro_rules! value {
             value!(@sent ($($a)*)),
             Box::new(value!(@code () ($($tail)*)))
         )
+    };
+    (@code ($($a:tt)*) (if { $($true:tt)* } else { $($false:tt)* })) => {
+        Code::If{
+            cond: value!(@sent ($($a)*)),
+            true_case: Box::new(value!(@code () ($($true)*))),
+            false_case: Box::new(value!(@code () ($($false)*))),
+        }
     };
     (@code ($($a:tt)*) ($head:tt $($tail:tt)*)) => {
         value!(@code ($($a)* $head) ($($tail)*))

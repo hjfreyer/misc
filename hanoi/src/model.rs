@@ -67,6 +67,11 @@ pub enum Code {
     Sentence(Sentence),
     AndThen(Sentence, Box<Code>),
     Curried(Value, Box<Code>),
+    If {
+        cond: Sentence,
+        true_case: Box<Code>,
+        false_case: Box<Code>,
+    },
 }
 
 impl Code {
@@ -83,6 +88,18 @@ impl Code {
                 res.extend(code.into_words());
                 res
             }
+            Code::If {
+                cond,
+                true_case,
+                false_case,
+            } => {
+                let mut res = vec![];
+                res.extend(cond.0);
+                res.push(Word::Push(Value::Quote(true_case)));
+                res.push(Word::Push(Value::Quote(false_case)));
+                res.push(Word::Push(Value::Symbol("if")));
+                res
+            }
         }
     }
 }
@@ -93,6 +110,15 @@ impl std::fmt::Debug for Code {
             Self::Sentence(arg0) => arg0.fmt(f),
             Self::AndThen(arg0, arg1) => write!(f, "{:?}; {:?}", arg0, arg1),
             Self::Curried(arg0, arg1) => write!(f, "[{:?}]({:?})", arg0, arg1),
+            Self::If {
+                cond,
+                true_case,
+                false_case,
+            } => write!(
+                f,
+                "{:?} if {{ {:?} }} else {{ {:?} }}",
+                cond, true_case, false_case
+            ),
         }
     }
 }
