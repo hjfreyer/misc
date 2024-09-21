@@ -75,9 +75,9 @@ macro_rules! value {
     ($i:ident) => {
         Value::Reference(stringify!($i))
     };
-    ({$($code:tt)*}) => {
-        Value::Quote(Box::new(value!(@code () ($($code)*))))
-    };
+    // ({$($code:tt)*}) => {
+    //     Value::Quote(Box::new(value!(@code () ($($code)*))))
+    // };
     ($e:expr) => {
         Value::from($e)
     };
@@ -89,12 +89,12 @@ macro_rules! lib {
             decls: vec![],
         }
     };
-    (@lib (let $name:ident = $val:tt;) ($($tail:tt)*)) => {
+    (@lib (let $name:ident = {$($code:tt)*};) ($($tail:tt)*)) => {
         {
             let mut lib = lib!($($tail)*);
             lib.decls.insert(0, Decl {
                 name: stringify!($name).to_string(),
-                value: value!($val),
+                value: value!(@code () ($($code)*)),
             });
             lib
         }
