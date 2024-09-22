@@ -3,10 +3,27 @@ pub struct Library {
     pub decls: Vec<Decl>,
 }
 
+impl Library {
+    pub fn words(&self, ptr: &LibPointer) -> (Vec<Word>, Option<LibPointer>) {
+        let (words, decl_ptr) =
+            self.decls[ptr.0].words(&|subptr| LibPointer(ptr.0, subptr), &ptr.1);
+        (words, decl_ptr.map(|decl_ptr| LibPointer(ptr.0, decl_ptr)))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Decl {
     pub name: String,
     pub value: Code,
+}
+impl Decl {
+    fn words(
+        &self,
+        mkptr: &impl Fn(CodePointer) -> LibPointer,
+        ptr: &CodePointer,
+    ) -> (Vec<Word>, Option<CodePointer>) {
+        self.value.words(mkptr, ptr)
+    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -90,7 +107,7 @@ impl LibPointer {
 pub enum CodePointer {
     Sentence(usize),
     AndThenContinue(Box<CodePointer>),
-    Curried(Box<CodePointer>),
+    // Curried(Box<CodePointer>),
     IfTrue(Box<CodePointer>),
     IfFalse(Box<CodePointer>),
 }
@@ -149,14 +166,116 @@ impl Code {
     //     }
     // }
 
-    pub fn get_word(&self, pointer: CodePointer) -> Word {
-        // match (self, pointer) {
-        //     (Code::Sentence(sentence),CodePointer::Sentence(idx)) => CodePointer::Sentence(0),
-        //     (Code::AndThen(sentence, code),) => CodePointer::Sentence(0),
-        //     (Code::Curried(value, code),) => CodePointer::AndThenContinue(Box::new(code.start_pointer())),
-        //     (Code::If { cond, true_case, false_case },) => CodePointer::Sentence(0),
-        // }
-        todo!()
+    fn words(
+        &self,
+        mkptr: &dyn Fn(CodePointer) -> LibPointer,
+        ptr: &CodePointer,
+    ) -> (Vec<Word>, Option<CodePointer>) {
+        dbg!(ptr);
+        match (self, ptr) {
+            (Code::Sentence(sentence), CodePointer::Sentence(idx)) => {
+                let words = vec![sentence.0[*idx].clone()];
+                if idx + 1 == sentence.0.len() {
+                    (words, None)
+                } else {
+                    (words, Some(CodePointer::Sentence(idx + 1)))
+                }
+            }
+            (Code::Sentence(sentence), _) => panic!(),
+            (Code::AndThen(sentence, code), CodePointer::Sentence(idx)) => {
+                let mut words = vec![];
+                if *idx == 0 {
+                    words.push(Word::Push(Value::Pointer(
+                        vec![],
+                        mkptr(CodePointer::AndThenContinue(Box::new(code.start_pointer()))),
+                    )))
+                }
+                words.push(sentence.0[*idx].clone());
+                if idx + 1 == sentence.0.len() {
+                    (words, None)
+                } else {
+                    (words, Some(CodePointer::Sentence(idx + 1)))
+                }
+            }
+            (Code::AndThen(sentence, code), CodePointer::AndThenContinue(code_pointer)) => {
+                let (words, ptr) = code.words(
+                    &|subptr| mkptr(CodePointer::AndThenContinue(Box::new(subptr))),
+                    code_pointer,
+                );
+                (
+                    words,
+                    ptr.map(|p| CodePointer::AndThenContinue(Box::new(p))),
+                )
+            }
+            (Code::AndThen(sentence, code), _) => panic!(),
+            (
+                Code::If {
+                    cond,
+                    true_case,
+                    false_case,
+                },
+                CodePointer::Sentence(idx),
+            ) => {
+                let mut words = vec![];
+                words.push(cond.0[*idx].clone());
+                if idx + 1 == cond.0.len() {
+                    words.push(Word::Push(Value::Pointer(
+                        vec![],
+                        mkptr(CodePointer::IfTrue(Box::new(true_case.start_pointer()))),
+                    )));
+                    words.push(Word::Push(Value::Pointer(
+                        vec![],
+                        mkptr(CodePointer::IfFalse(Box::new(false_case.start_pointer()))),
+                    )));
+                    words.push(Word::Push(Value::Symbol("if")));
+                    (words, None)
+                } else {
+                    (words, Some(CodePointer::Sentence(idx + 1)))
+                }
+            }
+            (
+                Code::If {
+                    cond,
+                    true_case,
+                    false_case,
+                },
+                CodePointer::IfTrue(code_pointer),
+            ) => {
+                let (words, ptr) = true_case.words(
+                    &|subptr| mkptr(CodePointer::IfTrue(Box::new(subptr))),
+                    code_pointer,
+                );
+                (
+                    words,
+                    ptr.map(|subptr| CodePointer::IfTrue(Box::new(subptr))),
+                )
+            }
+            (
+                Code::If {
+                    cond,
+                    true_case,
+                    false_case,
+                },
+                CodePointer::IfFalse(code_pointer),
+            ) => {
+                let (words, ptr) = false_case.words(
+                    &|subptr| mkptr(CodePointer::IfFalse(Box::new(subptr))),
+                    code_pointer,
+                );
+                (
+                    words,
+                    ptr.map(|subptr| CodePointer::IfFalse(Box::new(subptr))),
+                )
+            }
+            (
+                Code::If {
+                    cond,
+                    true_case,
+                    false_case,
+                },
+                _,
+            ) => panic!(),
+        }
     }
 
     pub fn start_pointer(&self) -> CodePointer {
@@ -258,6 +377,136 @@ impl std::fmt::Debug for Word {
         }
     }
 }
+
+pub struct LibAndPointer {
+    pub decls: Vec<DeclAndPointer>,
+}
+
+impl LibAndPointer {
+    pub fn new(lib: Library, ptr: Option<LibPointer>) -> Self {
+        Self {
+            decls: lib
+                .decls
+                .into_iter()
+                .enumerate()
+                .map(|(idx, decl)| {
+                    DeclAndPointer(
+                        decl.name,
+                        CodeAndPointer::new(
+                            decl.value,
+                            match &ptr {
+                                Some(ptr) if ptr.0 == idx => Some(ptr.1.clone()),
+                                _ => None,
+                            },
+                        ),
+                    )
+                })
+                .collect(),
+        }
+    }
+}
+
+pub struct DeclAndPointer(pub String, pub CodeAndPointer);
+
+impl CodeAndPointer {
+    pub fn new(code: Code, ptr: Option<CodePointer>) -> Self {
+        match (code, ptr) {
+            (Code::Sentence(sentence), None) => {
+                CodeAndPointer::Sentence(SentenceAndPointer(sentence, None))
+            }
+            (Code::Sentence(sentence), Some(CodePointer::Sentence(idx))) => {
+                CodeAndPointer::Sentence(SentenceAndPointer(sentence, Some(idx)))
+            }
+            (Code::Sentence(sentence), _) => panic!(),
+            (Code::AndThen(sentence, code), None) => CodeAndPointer::AndThen(
+                SentenceAndPointer(sentence, None),
+                Box::new(CodeAndPointer::new(*code, None)),
+            ),
+            (Code::AndThen(sentence, code), Some(CodePointer::Sentence(idx))) => {
+                CodeAndPointer::AndThen(
+                    SentenceAndPointer(sentence, Some(idx)),
+                    Box::new(CodeAndPointer::new(*code, None)),
+                )
+            }
+            (Code::AndThen(sentence, code), Some(CodePointer::AndThenContinue(code_pointer))) => {
+                CodeAndPointer::AndThen(
+                    SentenceAndPointer(sentence, None),
+                    Box::new(CodeAndPointer::new(*code, Some(*code_pointer))),
+                )
+            }
+            (Code::AndThen(sentence, code), _) => panic!(),
+            (
+                Code::If {
+                    cond,
+                    true_case,
+                    false_case,
+                },
+                None,
+            ) => CodeAndPointer::If {
+                cond: SentenceAndPointer(cond, None),
+                true_case: Box::new(CodeAndPointer::new(*true_case, None)),
+                false_case: Box::new(CodeAndPointer::new(*false_case, None)),
+            },
+            (
+                Code::If {
+                    cond,
+                    true_case,
+                    false_case,
+                },
+                Some(CodePointer::Sentence(idx)),
+            ) => CodeAndPointer::If {
+                cond: SentenceAndPointer(cond, Some(idx)),
+                true_case: Box::new(CodeAndPointer::new(*true_case, None)),
+                false_case: Box::new(CodeAndPointer::new(*false_case, None)),
+            },
+            (
+                Code::If {
+                    cond,
+                    true_case,
+                    false_case,
+                },
+                Some(CodePointer::IfTrue(code_pointer)),
+            ) => CodeAndPointer::If {
+                cond: SentenceAndPointer(cond, None),
+                true_case: Box::new(CodeAndPointer::new(*true_case, Some(*code_pointer))),
+                false_case: Box::new(CodeAndPointer::new(*false_case, None)),
+            },
+            (
+                Code::If {
+                    cond,
+                    true_case,
+                    false_case,
+                },
+                Some(CodePointer::IfFalse(code_pointer)),
+            ) => CodeAndPointer::If {
+                cond: SentenceAndPointer(cond, None),
+                true_case: Box::new(CodeAndPointer::new(*true_case, None)),
+                false_case: Box::new(CodeAndPointer::new(*false_case, Some(*code_pointer))),
+            },
+            (
+                Code::If {
+                    cond,
+                    true_case,
+                    false_case,
+                },
+                _,
+            ) => panic!(),
+        }
+    }
+}
+
+pub enum CodeAndPointer {
+    Sentence(SentenceAndPointer),
+    AndThen(SentenceAndPointer, Box<CodeAndPointer>),
+    If {
+        cond: SentenceAndPointer,
+        true_case: Box<CodeAndPointer>,
+        false_case: Box<CodeAndPointer>,
+    },
+}
+
+pub struct SentenceAndPointer(pub Sentence, pub Option<usize>);
+
 pub struct PrettyPrinter<W> {
     pub f: W,
     pub indent: String,
