@@ -1,15 +1,6 @@
 macro_rules! phrase {
-    (add) => {
-        Word::Add
-    };
-    (curry) => {
-        Word::Curry
-    };
-    (eq) => {
-        Word::Eq
-    };
-    (copy($idx:expr)) => {
-        Word::Copy($idx)
+    ($name:ident($idx:expr)) => {
+        ast::Expression::FunctionLike(stringify!($name), $idx)
     };
     (drop($idx:expr)) => {
         Word::Drop($idx)
@@ -18,26 +9,23 @@ macro_rules! phrase {
         Word::Move($idx)
     };
     (* $name:ident) => {
-        Word::Push(Value::Symbol(stringify!($name)))
+        ast::Expression::Symbol(stringify!($name))
     };
     (# $val:expr) => {
-        Word::Push(Value::from($val))
+        ast::Expression::from($val)
     };
     ($name:ident) => {
-        Word::Push(Value::Reference(stringify!($name).to_string()))
+        ast::Expression::Reference(stringify!($name))
     };
 }
 
 macro_rules! value {
     (@phrasecat ($($phrase:tt)*) ($($tail:tt)*) ) => {
-        {
-            let mut res :Sentence= Sentence(vec![]);
-            res.push(phrase!($($phrase)*));
-            res.push(value!(@sent ($($tail)*)));
-            res
-        }
+        ast::Sentence(std::iter::once(phrase!($($phrase)*))
+            .chain(value!(@sent ($($tail)*)).0.into_iter())
+            .collect())
     };
-    (@sent ()) => { Sentence(vec![]) };
+    (@sent ()) => { ast::Sentence(vec![]) };
 
     (@sent (* $symbol:ident $($tail:tt)*)) => {
         value!(@phrasecat (* $symbol) ($($tail)*))
@@ -52,18 +40,18 @@ macro_rules! value {
         value!(@phrasecat ($head) ($($tail)*))
     };
     (@code ($($a:tt)*) ()) => {
-        Code::Sentence(
+        ast::Code::Sentence(
             value!(@sent ($($a)*)),
         )
     };
     (@code ($($a:tt)*) (; $($tail:tt)*)) => {
-        Code::AndThen(
+        ast::Code::AndThen(
             value!(@sent ($($a)*)),
             Box::new(value!(@code () ($($tail)*)))
         )
     };
     (@code ($($a:tt)*) (if { $($true:tt)* } else { $($false:tt)* })) => {
-        Code::If{
+        ast::Code::If{
             cond: value!(@sent ($($a)*)),
             true_case: Box::new(value!(@code () ($($true)*))),
             false_case: Box::new(value!(@code () ($($false)*))),
@@ -75,9 +63,6 @@ macro_rules! value {
     ($i:ident) => {
         Value::Reference(stringify!($i))
     };
-    // ({$($code:tt)*}) => {
-    //     Value::Quote(Box::new(value!(@code () ($($code)*))))
-    // };
     ($e:expr) => {
         Value::from($e)
     };
@@ -85,14 +70,14 @@ macro_rules! value {
 
 macro_rules! lib {
     (@lib () ()) => {
-        Library {
+        ast::Library {
             decls: vec![],
         }
     };
     (@lib (let $name:ident = {$($code:tt)*};) ($($tail:tt)*)) => {
         {
             let mut lib = lib!($($tail)*);
-            lib.decls.insert(0, Decl {
+            lib.decls.insert(0, ast::Decl {
                 name: stringify!($name).to_string(),
                 value: value!(@code () ($($code)*)),
             });

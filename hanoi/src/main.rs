@@ -1,19 +1,21 @@
 #![allow(unused)]
 
-mod model;
+mod ast;
+mod flat;
 #[macro_use]
 mod macros;
 
+use flat::{Code, CodeIndex, DeclIndex, Library, Pointer, SentenceIndex, Value, Word, WordIndex};
 use itertools::Itertools;
-use model::*;
 use ratatui::{
     crossterm::event::{self, KeyEventKind},
     layout::{Constraint, Layout},
-    style::Stylize,
+    style::{Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{List, ListItem, Paragraph},
+    widgets::{List, ListItem, ListState, Paragraph},
     DefaultTerminal, Frame,
 };
+use typed_index_collections::TiVec;
 
 fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
     match w {
@@ -73,24 +75,9 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
             closure.insert(0, val);
             stack.push(Value::Pointer(closure, code));
         }
-    }
-}
-
-impl From<usize> for Value {
-    fn from(value: usize) -> Self {
-        Self::Usize(value)
-    }
-}
-
-impl From<usize> for Word {
-    fn from(value: usize) -> Self {
-        Self::Push(value.into())
-    }
-}
-
-impl From<usize> for Sentence {
-    fn from(value: usize) -> Self {
-        Self(vec![value.into()])
+        Word::PushDecl(decl_index) => {
+            stack.push(Value::Pointer(vec![], lib.decls[*decl_index].code))
+        }
     }
 }
 
@@ -104,7 +91,7 @@ struct Buffer {
     mem: Vec<usize>,
 }
 
-fn control_flow(lib: &Library, stack: &mut Vec<Value>, arena: &mut Arena) -> Option<LibPointer> {
+fn control_flow(lib: &Library, stack: &mut Vec<Value>, arena: &mut Arena) -> Vec<(Word, Pointer)> {
     let Some(Value::Symbol(op)) = stack.pop() else {
         panic!("bad value")
     };
@@ -161,136 +148,185 @@ fn control_flow(lib: &Library, stack: &mut Vec<Value>, arena: &mut Arena) -> Opt
             };
             if cond {
                 stack.extend(true_curry);
-                Some(true_case)
+                lib.code_words(true_case)
             } else {
                 stack.extend(false_curry);
-                Some(false_case)
+                lib.code_words(false_case)
             }
         }
         "exec" => {
             let (push, next) = stack.pop().unwrap().into_code(lib).unwrap();
             stack.extend(push);
-            Some(next)
+            lib.code_words(next)
         }
         // "halt" => None,
-        _ => panic!(),
+        unk => panic!("unknown symbol: {}", unk),
     }
 }
 
 struct Debugger {
     lib: Library,
-    pointer: Option<LibPointer>,
+    prog: Vec<(Word, Pointer)>,
     stack: Vec<Value>,
     arena: Arena,
+
+    stack_state: ListState,
 }
 
 impl Debugger {
     fn step(&mut self) {
-        eprintln!("step: {:?}", self.pointer);
-        if let Some(pointer) = &mut self.pointer {
-            let (words, new_ptr) = self.lib.words(pointer);
-
-            for w in words {
-                eval(&self.lib, &mut self.stack, &w);
-            }
-            self.pointer = new_ptr;
+        if let Some((word, ptr)) = self.prog.pop() {
+            eprintln!("word: {:?}", word);
+            eval(&self.lib, &mut self.stack, &word);
         } else {
-            self.pointer = control_flow(&self.lib, &mut self.stack, &mut self.arena)
+            self.prog = control_flow(&self.lib, &mut self.stack, &mut self.arena)
+                .into_iter()
+                .rev()
+                .collect()
         }
     }
 
     fn code(&self) -> Paragraph {
-        Paragraph::new(print_lib(&LibAndPointer::new(
-            self.lib.clone(),
-            self.pointer.clone(),
-        )))
-        .white()
-        .on_blue()
+        let styles = Styles {
+            codes: self
+                .lib
+                .codes
+                .keys()
+                .map(|idx| match self.prog.last() {
+                    Some((_, Pointer::Code(cidx))) if *cidx == idx => {
+                        Style::new().on_cyan().underlined()
+                    }
+                    _ => Style::new(),
+                })
+                .collect(),
+            words: self
+                .lib
+                .words
+                .keys()
+                .map(|idx| match self.prog.last() {
+                    Some((_, Pointer::Sentence(sidx, offset)))
+                        if self.lib.sentences[*sidx].0[*offset] == idx =>
+                    {
+                        Style::new().on_cyan()
+                    }
+                    _ => Style::new(),
+                })
+                .collect(),
+        };
+        Paragraph::new(print_lib(&self.lib, &styles))
+            .white()
+            .on_blue()
     }
 
-    fn stack(&self) -> List {
+    fn stack(&self) -> List<'static> {
         let items: Vec<ListItem> = self
             .stack
             .iter()
             .map(|v| ListItem::new(format!("{:?}", v)))
             .collect();
-        List::new(items)
+        List::new(items).highlight_style(Style::new().black().on_white())
     }
 
-    fn render_program(&self, frame: &mut Frame) {
+    fn render_program(&mut self, frame: &mut Frame) {
         let layout = Layout::horizontal(Constraint::from_percentages([50, 50])).split(frame.area());
 
         frame.render_widget(self.code(), layout[0]);
-        frame.render_widget(self.stack(), layout[1]);
+        frame.render_stateful_widget(self.stack(), layout[1], &mut self.stack_state);
     }
 }
 
-pub fn print_lib(lib: &LibAndPointer) -> Text<'static> {
+#[derive(Debug, Clone)]
+pub struct Styles {
+    pub codes: TiVec<CodeIndex, Style>,
+    pub words: TiVec<WordIndex, Style>,
+}
+
+pub fn print_lib(lib: &Library, styles: &Styles) -> Text<'static> {
     let mut res = Text::default();
-    for decl in lib.decls.iter() {
-        res.extend(print_decl("".to_string(), decl))
+    for decl in lib.decls.keys() {
+        res.extend(print_decl(lib, decl, styles))
     }
     res
 }
 
-fn print_decl(mut indent: String, decl: &DeclAndPointer) -> Text<'static> {
-    let mut res = Text::raw(format!("{}let {} = {{\n", indent, decl.0));
-    indent += "  ";
-    res.extend(print_code(indent.clone(), &decl.1));
-    indent.truncate(indent.len() - 2);
-    res.extend(Text::raw(format!("{}}};\n\n", indent)));
-    res
+fn print_decl(lib: &Library, idx: DeclIndex, styles: &Styles) -> Text<'static> {
+    let decl = &lib.decls[idx];
+    std::iter::once(Line::raw(format!("let {} = {{", decl.name)))
+        .chain(print_code(lib, decl.code, 2, styles, Style::new()).into_iter())
+        .chain(std::iter::once("}".into()))
+        .collect()
 }
 
-fn print_code(mut indent: String, value: &CodeAndPointer) -> Text<'static> {
-    match value {
-        CodeAndPointer::Sentence(sentence_and_pointer) => {
-            print_sentence(indent, sentence_and_pointer).into()
+fn print_code(
+    lib: &Library,
+    code_index: CodeIndex,
+    indent: usize,
+    styles: &Styles,
+    mut line_style: Style,
+) -> Text<'static> {
+    line_style = line_style.patch(styles.codes[code_index]);
+
+    let code = &lib.codes[code_index];
+    match code {
+        Code::Sentence(styled_sentence) => {
+            print_sentence(lib, *styled_sentence, indent, styles, line_style).into()
         }
-        CodeAndPointer::AndThen(sentence_and_pointer, code_and_pointer) => {
-            let mut res = Text::default();
-            res.push_line(print_sentence(indent.clone(), sentence_and_pointer));
-            res.extend(print_code(indent, code_and_pointer));
-            res
+        Code::AndThen(styled_sentence, styled_code) => {
+            let mut line = print_sentence(lib, *styled_sentence, indent, styles, line_style);
+            line.push_span(Span::raw(";"));
+            std::iter::once(line)
+                .chain(print_code(lib, *styled_code, indent, styles, line_style).into_iter())
+                .collect()
         }
-        CodeAndPointer::If {
+        Code::If {
             cond,
             true_case,
             false_case,
         } => {
-            let mut res = Text::raw("");
-            res.push_line(print_sentence(indent.clone(), cond));
-            res.extend(Text::raw("if {"));
-            indent += "  ";
-            res.extend(print_code(indent.clone(), true_case));
-            indent.truncate(indent.len() - 2);
-            res.extend(Text::raw(format!("{}}} else {{", indent.clone())));
-            indent += "  ";
-            res.extend(print_code(indent.clone(), false_case));
-            indent.truncate(indent.len() - 2);
-            res.extend(Text::raw(format!("{}}};", indent.clone())));
-            res
+            let mut line = print_sentence(lib, *cond, indent, styles, line_style);
+            line.push_span(" if {");
+            std::iter::once(line)
+                .chain(print_code(lib, *true_case, indent + 2, styles, line_style).into_iter())
+                .chain(std::iter::once("} else {".into()))
+                .chain(print_code(lib, *false_case, indent + 2, styles, line_style).into_iter())
+                .chain(std::iter::once("}".into()))
+                .collect()
         }
     }
 }
 
 fn print_sentence(
-    mut indent: String,
-    SentenceAndPointer(value, ptr): &SentenceAndPointer,
+    lib: &Library,
+    sentence_idx: SentenceIndex,
+    indent: usize,
+    styles: &Styles,
+    line_style: Style,
 ) -> Line<'static> {
-    let mut res = Line::raw(indent);
-    res.extend(Itertools::intersperse(
-        value.0.iter().enumerate().map(|(idx, w)| {
-            let text = Span::raw(format!("{:?}", w));
-            if *ptr == Some(idx) {
-                text.bold().on_cyan()
-            } else {
-                text
-            }
-        }),
-        Span::raw(" "),
-    ));
-    res
+    let sentence = &lib.sentences[sentence_idx];
+    Line::from_iter(
+        std::iter::once(Span::raw(" ".repeat(indent))).chain(Itertools::intersperse(
+            sentence.0.iter().map(|w| print_word(lib, *w, styles)),
+            Span::raw(" "),
+        )),
+    )
+    .style(line_style)
+}
+
+fn print_word(lib: &Library, word_idx: WordIndex, styles: &Styles) -> Span<'static> {
+    let res: Span<'static> = match &lib.words[word_idx] {
+        Word::Add => "add".into(),
+        Word::Push(value) => format!("{:?}", value).into(),
+        Word::Cons => todo!(),
+        Word::Snoc => todo!(),
+        Word::Eq => "eq".into(),
+        Word::Copy(i) => format!("copy({})", i).into(),
+        Word::Drop(i) => format!("drop({})", i).into(),
+        Word::Move(i) => format!("mv({})", i).into(),
+        Word::Swap => "swap".into(),
+        Word::Curry => "curry".into(),
+        Word::PushDecl(decl_idx) => lib.decls[*decl_idx].name.clone().into(),
+    };
+    res.style(styles.words[word_idx])
 }
 
 fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Result<()> {
@@ -308,12 +344,18 @@ fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Result
             if key.kind == KeyEventKind::Press && key.code == event::KeyCode::Right {
                 debugger.step();
             }
+            if key.kind == KeyEventKind::Press && key.code == event::KeyCode::Up {
+                debugger.stack_state.select_previous();
+            }
+            if key.kind == KeyEventKind::Press && key.code == event::KeyCode::Down {
+                debugger.stack_state.select_next();
+            }
         }
     }
 }
 
 fn main() -> std::io::Result<()> {
-    let lib = lib! {
+    let lib: ast::Library = lib! {
         let test_malloc = {
             #4 *malloc;
             #12 #1 mv(3) *set_mem;
@@ -377,63 +419,20 @@ fn main() -> std::io::Result<()> {
            *halt
         };
     };
+    let lib = Library::from_ast(lib);
 
-    // println!("{:?}", lib);
-    // // let inc = paragraph! { 1 add };
-
-    // // let count: Sentence = paragraph! {
-    // //     // (caller next)
-    // //     1
-    // //     // (caller next 1)
-    // //     mv(2)
-    // //     // (next 1 caller)
-    // //     exec;
-    // //     2 mv(2) exec;
-    // //     3 mv(2) exec;
-    // //     eos
-    // // };
-
-    // // let mut prog: Sentence = paragraph! {
-    // //     evens;
-    // //     drop(1) swap exec;
-    // //     drop(1) swap exec;
-    // //     halt
-    // // };
-
-    // let mut prog: Vec<Word> = vec![
-    //     Word::Push(lib.decls.last().unwrap().value.clone()),
-    //     Word::Push(Value::Symbol("exec")),
-    // ];
-    // let mut stack = vec![];
-    // let mut arena = Arena { buffers: vec![] };
-
-    // loop {
-    //     for w in prog {
-    //         println!("{:?}", w);
-    //         eval(&lib, &mut stack, w);
-    //         println!("{:?}", stack);
-    //         println!("");
-    //     }
-
-    //     if let Some(next) = control_flow(&lib, &mut stack, &mut arena) {
-    //         prog = next;
-    //     } else {
-    //         break;
-    //     }
-    // }
-
-    // println!("{:?}", stack);
-    // println!("{:?}", arena);
-
-    let pointer = LibPointer(lib.decls.len() - 1, {
-        let code = &lib.decls.last().unwrap().value;
-        code.start_pointer()
-    });
+    let prog = lib
+        .code_words(lib.decls.last().unwrap().code)
+        .into_iter()
+        .rev()
+        .collect();
     let debugger = Debugger {
         lib,
-        pointer: Some(pointer),
+        prog,
         stack: vec![],
         arena: Arena { buffers: vec![] },
+
+        stack_state: ListState::default(),
     };
 
     let mut terminal = ratatui::init();

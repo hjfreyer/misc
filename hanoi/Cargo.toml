@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+derive_more = {version="1.0.0", features= ["from", "into"]}
 itertools = "0.13.0"
 ratatui = "0.28.1"
+typed-index-collections = "3.1.0"
