@@ -222,7 +222,13 @@ impl Debugger {
         let items: Vec<ListItem> = self
             .stack
             .iter()
-            .map(|v| ListItem::new(format!("{:?}", v)))
+            .map(|v| {
+                ListItem::new({
+                    let mut s = "".to_string();
+                    v.format(&mut s, &self.lib).unwrap();
+                    s
+                })
+            })
             .collect();
         List::new(items).highlight_style(Style::new().black().on_white())
     }
@@ -356,12 +362,6 @@ fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Result
 
 fn main() -> std::io::Result<()> {
     let lib: ast::Library = lib! {
-        let test_malloc = {
-            #4 *malloc;
-            #12 #1 mv(3) *set_mem;
-            *halt
-        };
-
         let count = {
             // (caller next)
             #1 *yield
@@ -374,46 +374,33 @@ fn main() -> std::io::Result<()> {
             *eos mv(1) *exec
         };
 
-        let evens_step = {
-            // (caller (countnext 1 *yield)|(*eos) evensnext)
-            copy(1) *yield eq if {
-                // (caller countnext 1 *yield evensnext)
-                mv(2) copy(0) add mv(2)
-                // (caller countnext evensnext 2*i *yield)
-                mv(3) mv(3)
-                // (caller 2*i *yield countnext evensnext)
-                curry
-                // (caller 2*i *yield evensnext)
-                mv(2) mv(2) mv(3)
-                // (evensnext 2*i *yield caller)
-                *exec
+        let double_inner = {
+            // (caller iternext self mynext)
+            mv(2) *exec;
+            // (caller self (iternext 1 *yield)|(*eos))
+            *yield eq if {
+                // (caller self iternext 1)
+                copy(0) add
+                // (caller self iternext 2)
+
+                mv(1) mv(2) copy(0) curry curry mv(1) *yield
+                // (caller selfnext 1 *yield)
+                mv(3) *exec
+
             } else {
-                // (caller *eos evensnext)
-                drop(1) mv(1) *exec
+                drop(0) *eos mv(1) *exec
             }
         };
 
-        let evens = {
-            // (caller mynext)
-            count *exec;
-            // (caller (countnext 1 *yield)|(*eos) mynext)
-            evens_step *exec;
-            mv(1) *exec;
-
-            // // (caller countnext 1 *yield mynext)
-            // evens_step *exec;
-            // // (caller countnext mynext)
-            // mv(1)
-            // // (caller mynext countnext)
-            // *exec
-            // ;
-            // evens_step *exec;
-            // mv(1) *exec;
-            // evens_step *exec;
+        let double = {
+            double_inner double_inner *exec
         };
 
         let main = {
-            evens *exec;
+            count double *exec;
+            // (iternext 2 *yield mynext)
+            drop(1) drop(1) mv(1) *exec;
+            drop(1) drop(1) mv(1) *exec;
             drop(1) drop(1) mv(1) *exec;
             drop(1) drop(1) mv(1) *exec;
            *halt

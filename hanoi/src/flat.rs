@@ -21,6 +21,8 @@ pub struct Library {
     pub codes: TiVec<CodeIndex, Code>,
     pub sentences: TiVec<SentenceIndex, Sentence>,
     pub words: TiVec<WordIndex, Word>,
+
+    pub code_to_decl: TiVec<CodeIndex, DeclIndex>,
 }
 
 impl Library {
@@ -34,6 +36,11 @@ impl Library {
         self.decls = TiVec::new();
         for decl in lib.decls {
             self.visit_decl(decl);
+        }
+
+        self.code_to_decl = self.codes.iter().map(|_| DeclIndex(usize::MAX)).collect();
+        for decl in self.decls.keys() {
+            self.index_decl(decl);
         }
     }
 
@@ -135,6 +142,26 @@ impl Library {
             .map(|(offset, widx)| (self.words[*widx].clone(), Pointer::Sentence(idx, offset)))
             .collect()
     }
+
+    fn index_decl(&mut self, idx: DeclIndex) {
+        self.index_code(idx, self.decls[idx].code)
+    }
+
+    fn index_code(&mut self, decl_idx: DeclIndex, code_idx: CodeIndex) {
+        self.code_to_decl[code_idx] = decl_idx;
+        match &self.codes[code_idx] {
+            Code::Sentence(sentence_index) => {}
+            Code::AndThen(sentence_index, code_idx) => self.index_code(decl_idx, *code_idx),
+            &Code::If {
+                cond,
+                true_case,
+                false_case,
+            } => {
+                self.index_code(decl_idx, true_case);
+                self.index_code(decl_idx, false_case);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -204,6 +231,21 @@ impl Value {
             | Value::List(_)
             | Value::Bool(_)
             | Value::Handle(_) => None,
+        }
+    }
+
+    pub fn format(&self, mut f: impl std::fmt::Write, lib: &Library) -> std::fmt::Result {
+        match self {
+            Self::Reference(arg0) => write!(f, "{}", arg0),
+            Self::Symbol(arg0) => write!(f, "*{}", arg0),
+            Self::Usize(arg0) => write!(f, "{}", arg0),
+            Self::List(arg0) => todo!(),
+            Self::Handle(arg0) => todo!(),
+            Self::Bool(arg0) => write!(f, "{}", arg0),
+            Self::Pointer(values, ptr) => {
+                let decl = &lib.decls[lib.code_to_decl[*ptr]];
+                write!(f, "{:?}{}#{}", values, decl.name, ptr.0)
+            }
         }
     }
 }
