@@ -5,7 +5,9 @@ mod flat;
 #[macro_use]
 mod macros;
 
-use flat::{Code, CodeIndex, DeclIndex, Library, Pointer, SentenceIndex, Value, Word, WordIndex};
+use flat::{
+    Builtin, Code, CodeIndex, DeclIndex, Library, Pointer, SentenceIndex, Value, Word, WordIndex,
+};
 use itertools::Itertools;
 use ratatui::{
     crossterm::event::{self, KeyEventKind},
@@ -19,7 +21,7 @@ use typed_index_collections::TiVec;
 
 fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
     match w {
-        Word::Add => {
+        Word::Builtin(Builtin::Add) => {
             let Some(Value::Usize(a)) = stack.pop() else {
                 panic!("bad value")
             };
@@ -38,29 +40,8 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
         Word::Drop(idx) => {
             stack.remove(stack.len() - idx - 1);
         }
-        Word::Swap => {
-            let a = stack.len() - 1;
-            let b = a - 1;
-            stack.swap(a, b);
-        }
         Word::Push(v) => stack.push(v.clone()),
-        Word::Cons => {
-            let car = stack.pop().unwrap();
-            let Some(Value::List(mut cdr)) = stack.pop() else {
-                panic!()
-            };
-            cdr.push(car);
-            stack.push(Value::List(cdr));
-        }
-        Word::Snoc => {
-            let Some(Value::List(mut list)) = stack.pop() else {
-                panic!()
-            };
-            let car = list.pop().unwrap();
-            stack.push(Value::List(list));
-            stack.push(car);
-        }
-        Word::Eq => {
+        Word::Builtin(Builtin::Eq) => {
             let Some(a) = stack.pop() else {
                 panic!("bad value")
             };
@@ -69,7 +50,7 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
             };
             stack.push(Value::Bool(a == b));
         }
-        Word::Curry => {
+        Word::Builtin(Builtin::Curry) => {
             let (mut closure, code) = stack.pop().unwrap().into_code(lib).unwrap();
             let Some(val) = stack.pop() else { panic!() };
             closure.insert(0, val);
@@ -77,6 +58,30 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
         }
         Word::PushDecl(decl_index) => {
             stack.push(Value::Pointer(vec![], lib.decls[*decl_index].code))
+        }
+        Word::Builtin(Builtin::And) => {
+            let Some(Value::Bool(a)) = stack.pop() else {
+                panic!("bad value")
+            };
+            let Some(Value::Bool(b)) = stack.pop() else {
+                panic!("bad value")
+            };
+            stack.push(Value::Bool(a && b));
+        }
+        Word::Builtin(Builtin::Or) => {
+            let Some(Value::Bool(a)) = stack.pop() else {
+                panic!("bad value")
+            };
+            let Some(Value::Bool(b)) = stack.pop() else {
+                panic!("bad value")
+            };
+            stack.push(Value::Bool(a || b));
+        }
+        Word::Builtin(Builtin::Not) => {
+            let Some(Value::Bool(a)) = stack.pop() else {
+                panic!("bad value")
+            };
+            stack.push(Value::Bool(!a));
         }
     }
 }
@@ -293,9 +298,13 @@ fn print_code(
             line.push_span(" if {");
             std::iter::once(line)
                 .chain(print_code(lib, *true_case, indent + 2, styles, line_style).into_iter())
-                .chain(std::iter::once("} else {".into()))
+                .chain(std::iter::once(
+                    Line::raw(format!("{}}} else {{", " ".repeat(indent))).style(line_style),
+                ))
                 .chain(print_code(lib, *false_case, indent + 2, styles, line_style).into_iter())
-                .chain(std::iter::once("}".into()))
+                .chain(std::iter::once(
+                    Line::raw(format!("{}}}", " ".repeat(indent))).style(line_style),
+                ))
                 .collect()
         }
     }
@@ -320,16 +329,11 @@ fn print_sentence(
 
 fn print_word(lib: &Library, word_idx: WordIndex, styles: &Styles) -> Span<'static> {
     let res: Span<'static> = match &lib.words[word_idx] {
-        Word::Add => "add".into(),
+        Word::Builtin(b) => b.name().into(),
         Word::Push(value) => format!("{:?}", value).into(),
-        Word::Cons => todo!(),
-        Word::Snoc => todo!(),
-        Word::Eq => "eq".into(),
         Word::Copy(i) => format!("copy({})", i).into(),
         Word::Drop(i) => format!("drop({})", i).into(),
         Word::Move(i) => format!("mv({})", i).into(),
-        Word::Swap => "swap".into(),
-        Word::Curry => "curry".into(),
         Word::PushDecl(decl_idx) => lib.decls[*decl_idx].name.clone().into(),
     };
     res.style(styles.words[word_idx])

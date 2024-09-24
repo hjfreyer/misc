@@ -85,18 +85,19 @@ impl Library {
             Expression::FunctionLike("drop", idx) => Word::Drop(idx),
             Expression::FunctionLike("mv", idx) => Word::Move(idx),
             Expression::FunctionLike(name, _) => panic!("unknown reference: {}", name),
-            Expression::Reference("add") => Word::Add,
-            Expression::Reference("eq") => Word::Eq,
-            Expression::Reference("curry") => Word::Curry,
             Expression::Reference(r) => {
-                if let Some((decl_idx, decl)) = self
-                    .decls
-                    .iter_enumerated()
-                    .find(|(_, decl)| decl.name == r)
-                {
-                    Word::PushDecl(decl_idx)
+                if let Some(builtin) = Builtin::ALL.iter().find(|builtin| builtin.name() == r) {
+                    Word::Builtin(*builtin)
                 } else {
-                    panic!("unknown reference: {}", r)
+                    if let Some((decl_idx, decl)) = self
+                        .decls
+                        .iter_enumerated()
+                        .find(|(_, decl)| decl.name == r)
+                    {
+                        Word::PushDecl(decl_idx)
+                    } else {
+                        panic!("unknown reference: {}", r)
+                    }
                 }
             }
         };
@@ -186,19 +187,46 @@ impl Code {}
 #[derive(Debug, Clone)]
 pub struct Sentence(pub Vec<WordIndex>);
 
+#[derive(Debug, Clone, Copy)]
+pub enum Builtin {
+    Add,
+    Eq,
+    Curry,
+    Or,
+    And,
+    Not,
+}
+
+impl Builtin {
+    pub const ALL: &[Builtin] = &[
+        Builtin::Add,
+        Builtin::Eq,
+        Builtin::Curry,
+        Builtin::Or,
+        Builtin::And,
+        Builtin::Not,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Builtin::Add => "add",
+            Builtin::Eq => "eq",
+            Builtin::Curry => "curry",
+            Builtin::Or => "or",
+            Builtin::And => "and",
+            Builtin::Not => "not",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Word {
-    Add,
     Push(Value),
     PushDecl(DeclIndex),
-    Cons,
-    Snoc,
-    Eq,
     Copy(usize),
     Drop(usize),
     Move(usize),
-    Swap,
-    Curry,
+    Builtin(Builtin),
 }
 
 #[derive(Clone, PartialEq, Eq)]
