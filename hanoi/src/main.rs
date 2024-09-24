@@ -56,6 +56,13 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
             closure.insert(0, val);
             stack.push(Value::Pointer(closure, code));
         }
+        Word::Builtin(Builtin::IsCode) => {
+            let value = Value::Bool(match stack.pop().unwrap() {
+                Value::Pointer(_, _) => true,
+                _ => false,
+            });
+            stack.push(value)
+        }
         Word::PushDecl(decl_index) => {
             stack.push(Value::Pointer(vec![], lib.decls[*decl_index].code))
         }
@@ -96,7 +103,11 @@ struct Buffer {
     mem: Vec<usize>,
 }
 
-fn control_flow(lib: &Library, stack: &mut Vec<Value>, arena: &mut Arena) -> Vec<(Word, Pointer)> {
+fn control_flow(
+    lib: &Library,
+    stack: &mut Vec<Value>,
+    arena: &mut Arena,
+) -> Option<Vec<(Word, Pointer)>> {
     let Some(Value::Symbol(op)) = stack.pop() else {
         panic!("bad value")
     };
@@ -153,51 +164,82 @@ fn control_flow(lib: &Library, stack: &mut Vec<Value>, arena: &mut Arena) -> Vec
             };
             if cond {
                 stack.extend(true_curry);
-                lib.code_words(true_case)
+                Some(lib.code_words(true_case))
             } else {
                 stack.extend(false_curry);
-                lib.code_words(false_case)
+                Some(lib.code_words(false_case))
             }
         }
         "exec" => {
             let (push, next) = stack.pop().unwrap().into_code(lib).unwrap();
             stack.extend(push);
-            lib.code_words(next)
+            Some(lib.code_words(next))
         }
+        "assert" => None,
         // "halt" => None,
         unk => panic!("unknown symbol: {}", unk),
     }
 }
 
-struct Debugger {
+struct Vm {
     lib: Library,
     prog: Vec<(Word, Pointer)>,
     stack: Vec<Value>,
     arena: Arena,
+}
+
+impl Vm {
+    pub fn new(ast: ast::Library) -> Self {
+        let lib = Library::from_ast(ast);
+
+        let prog = lib
+            .code_words(lib.decls.last().unwrap().code)
+            .into_iter()
+            .rev()
+            .collect();
+        Vm {
+            lib,
+            prog,
+            stack: vec![],
+            arena: Arena { buffers: vec![] },
+        }
+    }
+
+    pub fn step(&mut self) -> bool {
+        if let Some((word, ptr)) = self.prog.pop() {
+            eprintln!("word: {:?}", word);
+            eval(&self.lib, &mut self.stack, &word);
+            true
+        } else {
+            if let Some(new_prog) = control_flow(&self.lib, &mut self.stack, &mut self.arena) {
+                self.prog = new_prog.into_iter().rev().collect();
+                true
+            } else {
+                false
+            }
+        }
+    }
+}
+
+struct Debugger {
+    vm: Vm,
 
     stack_state: ListState,
 }
 
 impl Debugger {
-    fn step(&mut self) {
-        if let Some((word, ptr)) = self.prog.pop() {
-            eprintln!("word: {:?}", word);
-            eval(&self.lib, &mut self.stack, &word);
-        } else {
-            self.prog = control_flow(&self.lib, &mut self.stack, &mut self.arena)
-                .into_iter()
-                .rev()
-                .collect()
-        }
+    fn step(&mut self) -> bool {
+        self.vm.step()
     }
 
     fn code(&self) -> Paragraph {
         let styles = Styles {
             codes: self
+                .vm
                 .lib
                 .codes
                 .keys()
-                .map(|idx| match self.prog.last() {
+                .map(|idx| match self.vm.prog.last() {
                     Some((_, Pointer::Code(cidx))) if *cidx == idx => {
                         Style::new().on_cyan().underlined()
                     }
@@ -205,12 +247,13 @@ impl Debugger {
                 })
                 .collect(),
             words: self
+                .vm
                 .lib
                 .words
                 .keys()
-                .map(|idx| match self.prog.last() {
+                .map(|idx| match self.vm.prog.last() {
                     Some((_, Pointer::Sentence(sidx, offset)))
-                        if self.lib.sentences[*sidx].0[*offset] == idx =>
+                        if self.vm.lib.sentences[*sidx].0[*offset] == idx =>
                     {
                         Style::new().on_cyan()
                     }
@@ -218,19 +261,20 @@ impl Debugger {
                 })
                 .collect(),
         };
-        Paragraph::new(print_lib(&self.lib, &styles))
+        Paragraph::new(print_lib(&self.vm.lib, &styles))
             .white()
             .on_blue()
     }
 
     fn stack(&self) -> List<'static> {
         let items: Vec<ListItem> = self
+            .vm
             .stack
             .iter()
             .map(|v| {
                 ListItem::new({
                     let mut s = "".to_string();
-                    v.format(&mut s, &self.lib).unwrap();
+                    v.format(&mut s, &self.vm.lib).unwrap();
                     s
                 })
             })
@@ -375,39 +419,30 @@ fn main() -> std::io::Result<()> {
             *exec;
             #2 *yield mv(3) *exec;
             #3 *yield mv(3) *exec;
-            *eos mv(1) *exec
+            *ok mv(1) *exec
         };
 
-        let double_inner = {
-            // (caller iternext self mynext)
+        let is_generator_rec = {
+            // (caller generator self mynext)
             mv(2) *exec;
-            // (caller self (iternext 1 *yield)|(*eos))
-            *yield eq if {
-                // (caller self iternext 1)
-                copy(0) add
-                // (caller self iternext 2)
-
-                mv(1) mv(2) copy(0) curry curry mv(1) *yield
-                // (caller selfnext 1 *yield)
-                mv(3) *exec
-
+            // (caller self (iternext X *yield)|(*ok))
+            copy(0) *yield eq if {
+                // (caller self iternext X *yield)
+                drop(0) drop(0) mv(1)
+                // (caller iternext self)
+                copy(0) *exec
             } else {
-                drop(0) *eos mv(1) *exec
+
             }
         };
 
-        let double = {
-            double_inner double_inner *exec
+        let is_generator = {
+            is_generator_rec is_generator_rec *exec
         };
 
-        let main = {
-            count double *exec;
-            // (iternext 2 *yield mynext)
-            drop(1) drop(1) mv(1) *exec;
-            drop(1) drop(1) mv(1) *exec;
-            drop(1) drop(1) mv(1) *exec;
-            drop(1) drop(1) mv(1) *exec;
-           *halt
+        let true_test = {
+            count is_generator *exec;
+            *yield eq *assert
         };
     };
     let lib = Library::from_ast(lib);
@@ -418,10 +453,12 @@ fn main() -> std::io::Result<()> {
         .rev()
         .collect();
     let debugger = Debugger {
-        lib,
-        prog,
-        stack: vec![],
-        arena: Arena { buffers: vec![] },
+        vm: Vm {
+            lib,
+            prog,
+            stack: vec![],
+            arena: Arena { buffers: vec![] },
+        },
 
         stack_state: ListState::default(),
     };
@@ -431,4 +468,73 @@ fn main() -> std::io::Result<()> {
     let app_result = run(terminal, debugger);
     ratatui::restore();
     app_result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_assert() {
+        let mut vm = Vm::new(lib! {
+            let true_test = { #true *assert };
+        });
+
+        while vm.step() {}
+
+        assert_eq!(vm.stack, vec![Value::Bool(true)])
+    }
+
+    #[test]
+    fn concrete_generator() {
+        let mut vm = Vm::new(lib! {
+            let count = {
+                // (caller next)
+                #1 *yield
+                // (caller next 1 *yield)
+                mv(3)
+                // (next 1 caller)
+                *exec;
+                #2 *yield mv(3) *exec;
+                #3 *yield mv(3) *exec;
+                *ok mv(1) *exec
+            };
+
+            let is_generator_rec = {
+                // (caller generator self)
+                copy(1) is_code if {
+                    // (caller generator self mynext)
+                    mv(2) *exec;
+                    // (caller self (iternext X *yield)|(*ok))
+                    copy(0) *yield eq if {
+                        // (caller self iternext X *yield)
+                        drop(0) drop(0) mv(1)
+                        // (caller iternext self)
+                        copy(0) *exec
+                    } else {
+                        // (caller self *ok)
+                        *ok eq drop(1) mv(1) *exec
+                    }
+                } else {
+                    // (caller generator self)
+                    drop(0) drop(0) #false *exec
+                }
+            };
+
+            let is_generator = {
+                is_generator_rec is_generator_rec *exec
+            };
+
+            let true_test = {
+                count is_generator *exec;
+                *assert
+            };
+        });
+
+        while vm.step() {
+            println!("{:?}", vm.stack)
+        }
+
+        assert_eq!(vm.stack, vec![Value::Bool(true)])
+    }
 }

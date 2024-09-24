@@ -187,36 +187,37 @@ impl Code {}
 #[derive(Debug, Clone)]
 pub struct Sentence(pub Vec<WordIndex>);
 
-#[derive(Debug, Clone, Copy)]
-pub enum Builtin {
-    Add,
-    Eq,
-    Curry,
-    Or,
-    And,
-    Not,
+macro_rules! builtins {
+    {
+        $(($ident:ident, $name:ident),)*
+    } => {
+        #[derive(Debug, Clone, Copy)]
+        pub enum Builtin {
+            $($ident,)*
+        }
+
+        impl Builtin {
+            pub const ALL: &[Builtin] = &[
+                $(Builtin::$ident,)*
+            ];
+
+            pub fn name(self) -> &'static str {
+                match self {
+                    $(Builtin::$ident => stringify!($name),)*
+                }
+            }
+        }
+    };
 }
 
-impl Builtin {
-    pub const ALL: &[Builtin] = &[
-        Builtin::Add,
-        Builtin::Eq,
-        Builtin::Curry,
-        Builtin::Or,
-        Builtin::And,
-        Builtin::Not,
-    ];
-
-    pub fn name(self) -> &'static str {
-        match self {
-            Builtin::Add => "add",
-            Builtin::Eq => "eq",
-            Builtin::Curry => "curry",
-            Builtin::Or => "or",
-            Builtin::And => "and",
-            Builtin::Not => "not",
-        }
-    }
+builtins! {
+    (Add, add),
+    (Eq, eq),
+    (Curry, curry),
+    (Or, or),
+    (And, and),
+    (Not, not),
+    (IsCode, is_code),
 }
 
 #[derive(Debug, Clone)]
@@ -234,26 +235,15 @@ pub enum Value {
     Symbol(&'static str),
     Usize(usize),
     List(Vec<Value>),
-    // Quote(Box<Code>),
     Pointer(Vec<Value>, CodeIndex),
     Handle(usize),
     Bool(bool),
-    Reference(String),
 }
 
 impl Value {
     pub fn into_code(self, lib: &Library) -> Option<(Vec<Value>, CodeIndex)> {
         match self {
-            // Value::Quote(code) => Some(*code),
             Self::Pointer(values, ptr) => Some((values, ptr)),
-            Value::Reference(name) => Some((
-                vec![],
-                lib.decls
-                    .iter()
-                    .enumerate()
-                    .find_map(|(idx, d)| if d.name == name { Some(d.code) } else { None })
-                    .unwrap(),
-            )),
             Value::Symbol(_)
             | Value::Usize(_)
             | Value::List(_)
@@ -264,7 +254,6 @@ impl Value {
 
     pub fn format(&self, mut f: impl std::fmt::Write, lib: &Library) -> std::fmt::Result {
         match self {
-            Self::Reference(arg0) => write!(f, "{}", arg0),
             Self::Symbol(arg0) => write!(f, "*{}", arg0),
             Self::Usize(arg0) => write!(f, "{}", arg0),
             Self::List(arg0) => todo!(),
@@ -281,11 +270,9 @@ impl Value {
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Reference(arg0) => write!(f, "{}", arg0),
             Self::Symbol(arg0) => write!(f, "*{}", arg0),
             Self::Usize(arg0) => write!(f, "{}", arg0),
             Self::List(arg0) => f.debug_tuple("List").field(arg0).finish(),
-            // Self::Quote(arg0) => write!(f, "{{{:?}}}", arg0),
             Self::Handle(arg0) => f.debug_tuple("Handle").field(arg0).finish(),
             Self::Bool(arg0) => write!(f, "{}", arg0),
             Self::Pointer(values, ptr) => write!(f, "[{:?}]({:?})", values, ptr),
