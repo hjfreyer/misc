@@ -135,7 +135,7 @@ impl Library {
         }
     }
 
-    fn sentence_words(&self, idx: SentenceIndex) -> Vec<(Word, Pointer)> {
+    pub fn sentence_words(&self, idx: SentenceIndex) -> Vec<(Word, Pointer)> {
         self.sentences[idx]
             .0
             .iter()
