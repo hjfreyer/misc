@@ -6,7 +6,8 @@ mod flat;
 mod macros;
 
 use flat::{
-    Builtin, Code, CodeIndex, CodeRef, CodeView, DeclIndex, DeclRef, Library, Pointer, SentenceIndex, SentenceRef, Value, Word, WordIndex
+    Builtin, Code, CodeIndex, CodeRef, CodeView, DeclIndex, DeclRef, Library, Pointer,
+    SentenceIndex, SentenceRef, Value, Word, WordIndex,
 };
 use itertools::Itertools;
 use ratatui::{
@@ -360,7 +361,9 @@ fn print_sentence(
 ) -> Line<'static> {
     Line::from_iter(
         std::iter::once(Span::raw(" ".repeat(indent))).chain(Itertools::intersperse(
-            sentence.word_idxes().map(|w| print_word(sentence.lib, w, styles)),
+            sentence
+                .word_idxes()
+                .map(|w| print_word(sentence.lib, w, styles)),
             Span::raw(" "),
         )),
     )
@@ -404,60 +407,91 @@ fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Result
 }
 
 fn main() -> std::io::Result<()> {
-    let lib: ast::Library = lib! {
-        let count = {
-            // (caller next)
-            #1 *yield
-            // (caller next 1 *yield)
-            mv(3)
-            // (next 1 caller)
-            *exec;
-            #2 *yield mv(3) *exec;
-            #3 *yield mv(3) *exec;
-            *ok mv(1) *exec
-        };
-
-        let is_generator_rec = {
-            // (caller generator self mynext)
+    let mut vm = Vm::new(lib! {
+        let map_rec = {
+            // (caller fn iter self next)
             mv(2) *exec;
-            // (caller self (iternext X *yield)|(*ok))
-            copy(0) *yield eq if {
-                // (caller self iternext X *yield)
-                drop(0) drop(0) mv(1)
-                // (caller iternext self)
-                copy(0) *exec
+            // (caller fn self (iternext val *yield)|(*ok))
+            copy(0) *ok eq if {
+                // (caller fn self *ok)
+                drop(1) drop(1) mv(1) *exec
             } else {
-
+                // (caller fn self iternext val *yield)
+                copy(0) *yield eq if {
+                    // (caller fn self iternext val *yield next)
+                    mv(2) copy(5)
+                    // (caller fn self iternext *yield next val fn)
+                    *exec;
+                    // (caller fn self iternext *yield mapped *ok)
+                    *ok eq if {
+                        // (caller fn self iternext *yield mapped)
+                        mv(4) mv(3) mv(4)
+                        // (caller *yield mapped fn iternext self)
+                        copy(0) curry curry curry
+                        // (caller *yield mapped mapnext)
+                        mv(1) mv(2) mv(3) *exec
+                    } else {
+                        *panic
+                    }
+                } else {
+                    *panic
+                }
             }
         };
 
-        let is_generator = {
-            is_generator_rec is_generator_rec *exec
+        let map = {
+            // (caller fn iter)
+            map_rec map_rec *exec
         };
 
-        let true_test = {
-            count is_generator *exec;
-            *yield eq *assert
+        let count_rec = {
+            // (caller self i)
+            #1 add
+            // (caller self (i+1))
+            copy(0)
+            // (caller self (i+1) (i+1))
+            mv(2)
+            // (caller (i+1) (i+1) self)
+            mv(2)
+            // (caller (i+1) self (i+1))
+            copy(1)
+            // (caller (i+1) self (i+1) self)
+            curry
+            // (caller (i+1) self [(i+1)](self))
+            curry
+            // (caller (i+1) [self, (i+1)](self))
+            mv(1)
+            // (caller nextiter (i+1))
+            *yield
+            // (caller nextiter (i+1) *yield)
+            mv(3) *exec
         };
-    };
-    let lib = Library::from_ast(lib);
 
-    let prog = lib
-        .decls()
-        .last()
-        .unwrap()
-        .code()
-        .words()
-        .into_iter()
-        .rev()
-        .collect();
+        let count = {
+            count_rec #0 count_rec *exec
+        };
+
+        let double = {
+            // (caller n)
+            copy(0) add *ok mv(2) *exec
+        };
+
+        let main_rec = {
+            // (iter self next)
+            mv(2) *exec;
+            // (self iternext val *yield)
+            drop(0) drop(0) mv(1) copy(0)
+            // (iternext self self)
+            *exec
+        };
+
+        let main = {
+            double count map curry curry main_rec main_rec *exec
+        };
+    });
+
     let debugger = Debugger {
-        vm: Vm {
-            lib,
-            prog,
-            stack: vec![],
-            arena: Arena { buffers: vec![] },
-        },
+        vm,
 
         stack_state: ListState::default(),
     };
