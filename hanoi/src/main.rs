@@ -6,7 +6,7 @@ mod flat;
 mod macros;
 
 use flat::{
-    Builtin, Code, CodeIndex, DeclIndex, Library, Pointer, SentenceIndex, Value, Word, WordIndex,
+    Builtin, Code, CodeIndex, CodeRef, CodeView, DeclIndex, DeclRef, Library, Pointer, SentenceIndex, SentenceRef, Value, Word, WordIndex
 };
 use itertools::Itertools;
 use ratatui::{
@@ -299,54 +299,51 @@ pub struct Styles {
 
 pub fn print_lib(lib: &Library, styles: &Styles) -> Text<'static> {
     let mut res = Text::default();
-    for decl in lib.decls.keys() {
-        res.extend(print_decl(lib, decl, styles))
+    for decl in lib.decls() {
+        res.extend(print_decl(decl, styles))
     }
     res
 }
 
-fn print_decl(lib: &Library, idx: DeclIndex, styles: &Styles) -> Text<'static> {
-    let decl = &lib.decls[idx];
-    std::iter::once(Line::raw(format!("let {} = {{", decl.name)))
-        .chain(print_code(lib, decl.code, 2, styles, Style::new()).into_iter())
+fn print_decl(decl: DeclRef, styles: &Styles) -> Text<'static> {
+    std::iter::once(Line::raw(format!("let {} = {{", decl.name())))
+        .chain(print_code(decl.code(), 2, styles, Style::new()).into_iter())
         .chain(std::iter::once("}".into()))
         .collect()
 }
 
 fn print_code(
-    lib: &Library,
-    code_index: CodeIndex,
+    code: CodeRef,
     indent: usize,
     styles: &Styles,
     mut line_style: Style,
 ) -> Text<'static> {
-    line_style = line_style.patch(styles.codes[code_index]);
+    line_style = line_style.patch(styles.codes[code.idx]);
 
-    let code = &lib.codes[code_index];
-    match code {
-        Code::Sentence(styled_sentence) => {
-            print_sentence(lib, *styled_sentence, indent, styles, line_style).into()
+    match code.view() {
+        CodeView::Sentence(styled_sentence) => {
+            print_sentence(styled_sentence, indent, styles, line_style).into()
         }
-        Code::AndThen(styled_sentence, styled_code) => {
-            let mut line = print_sentence(lib, *styled_sentence, indent, styles, line_style);
+        CodeView::AndThen(styled_sentence, styled_code) => {
+            let mut line = print_sentence(styled_sentence, indent, styles, line_style);
             line.push_span(Span::raw(";"));
             std::iter::once(line)
-                .chain(print_code(lib, *styled_code, indent, styles, line_style).into_iter())
+                .chain(print_code(styled_code, indent, styles, line_style).into_iter())
                 .collect()
         }
-        Code::If {
+        CodeView::If {
             cond,
             true_case,
             false_case,
         } => {
-            let mut line = print_sentence(lib, *cond, indent, styles, line_style);
+            let mut line = print_sentence(cond, indent, styles, line_style);
             line.push_span(" if {");
             std::iter::once(line)
-                .chain(print_code(lib, *true_case, indent + 2, styles, line_style).into_iter())
+                .chain(print_code(true_case, indent + 2, styles, line_style).into_iter())
                 .chain(std::iter::once(
                     Line::raw(format!("{}}} else {{", " ".repeat(indent))).style(line_style),
                 ))
-                .chain(print_code(lib, *false_case, indent + 2, styles, line_style).into_iter())
+                .chain(print_code(false_case, indent + 2, styles, line_style).into_iter())
                 .chain(std::iter::once(
                     Line::raw(format!("{}}}", " ".repeat(indent))).style(line_style),
                 ))
@@ -356,16 +353,14 @@ fn print_code(
 }
 
 fn print_sentence(
-    lib: &Library,
-    sentence_idx: SentenceIndex,
+    sentence: SentenceRef,
     indent: usize,
     styles: &Styles,
     line_style: Style,
 ) -> Line<'static> {
-    let sentence = &lib.sentences[sentence_idx];
     Line::from_iter(
         std::iter::once(Span::raw(" ".repeat(indent))).chain(Itertools::intersperse(
-            sentence.0.iter().map(|w| print_word(lib, *w, styles)),
+            sentence.word_idxes().map(|w| print_word(sentence.lib, w, styles)),
             Span::raw(" "),
         )),
     )

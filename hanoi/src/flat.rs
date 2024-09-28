@@ -458,6 +458,13 @@ pub struct SentenceRef<'a> {
 }
 
 impl<'a> SentenceRef<'a> {
+    pub fn word_idxes(self) -> impl Iterator<Item = WordIndex> + 'a {
+        self.lib.sentences[self.idx]
+            .0
+            .iter()
+            .copied()
+    }
+
     pub fn words(self) -> impl Iterator<Item = (Word, Pointer)> + 'a {
         self.lib.sentences[self.idx]
             .0
