@@ -54,7 +54,7 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
             let (mut closure, code) = stack.pop().unwrap().into_code(lib).unwrap();
             let Some(val) = stack.pop() else { panic!() };
             closure.insert(0, val);
-            stack.push(Value::Pointer(closure, code));
+            stack.push(Value::Pointer(closure, code.idx));
         }
         Word::Builtin(Builtin::IsCode) => {
             let value = Value::Bool(match stack.pop().unwrap() {
@@ -161,16 +161,16 @@ fn control_flow(
             };
             if cond {
                 stack.extend(true_curry);
-                Some(lib.code_words(true_case))
+                Some(true_case.words())
             } else {
                 stack.extend(false_curry);
-                Some(lib.code_words(false_case))
+                Some(false_case.words())
             }
         }
         "exec" => {
             let (push, next) = stack.pop().unwrap().into_code(lib).unwrap();
             stack.extend(push);
-            Some(lib.code_words(next))
+            Some(next.words())
         }
         "assert" => None,
         // "halt" => None,
@@ -190,7 +190,11 @@ impl Vm {
         let lib = Library::from_ast(ast);
 
         let prog = lib
-            .code_words(lib.decls.last().unwrap().code)
+            .decls()
+            .last()
+            .unwrap()
+            .code()
+            .words()
             .into_iter()
             .rev()
             .collect();
@@ -444,7 +448,11 @@ fn main() -> std::io::Result<()> {
     let lib = Library::from_ast(lib);
 
     let prog = lib
-        .code_words(lib.decls.last().unwrap().code)
+        .decls()
+        .last()
+        .unwrap()
+        .code()
+        .words()
         .into_iter()
         .rev()
         .collect();
@@ -468,7 +476,7 @@ fn main() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use flat::{multi_code_type, Judgement, Type};
+    use flat::{Judgement, Type};
 
     use super::*;
 
@@ -567,7 +575,7 @@ mod tests {
             };
         });
 
-        let mut count_type = multi_code_type(&vm.lib, vm.lib.decls.last().unwrap().code);
+        let mut count_type = vm.lib.decls().last().unwrap().code().eventual_type();
 
         assert_eq!(
             count_type,

@@ -32,6 +32,10 @@ impl Library {
         res
     }
 
+    pub fn decls(&self) -> impl Iterator<Item = DeclRef> + '_ {
+        self.decls.keys().map(|idx| DeclRef { lib: self, idx })
+    }
+
     fn fill(&mut self, lib: ast::Library) {
         self.decls = TiVec::new();
         for decl in lib.decls {
@@ -102,46 +106,6 @@ impl Library {
             }
         };
         self.words.push_and_get_key(w)
-    }
-
-    pub fn code_words(&self, code_idx: CodeIndex) -> Vec<(Word, Pointer)> {
-        match &self.codes[code_idx] {
-            Code::Sentence(sentence_idx) => self.sentence_words(*sentence_idx),
-            Code::AndThen(sentence_idx, and_then) => std::iter::once((
-                Word::Push(Value::Pointer(vec![], *and_then)),
-                Pointer::Code(code_idx),
-            ))
-            .chain(self.sentence_words(*sentence_idx).into_iter())
-            .collect(),
-            Code::If {
-                cond,
-                true_case,
-                false_case,
-            } => self
-                .sentence_words(*cond)
-                .into_iter()
-                .chain([
-                    (
-                        Word::Push(Value::Pointer(vec![], *true_case)),
-                        Pointer::Code(code_idx),
-                    ),
-                    (
-                        Word::Push(Value::Pointer(vec![], *false_case)),
-                        Pointer::Code(code_idx),
-                    ),
-                    (Word::Push(Value::Symbol("if")), Pointer::Code(code_idx)),
-                ])
-                .collect(),
-        }
-    }
-
-    pub fn sentence_words(&self, idx: SentenceIndex) -> Vec<(Word, Pointer)> {
-        self.sentences[idx]
-            .0
-            .iter()
-            .enumerate()
-            .map(|(offset, widx)| (self.words[*widx].clone(), Pointer::Sentence(idx, offset)))
-            .collect()
     }
 
     fn index_decl(&mut self, idx: DeclIndex) {
@@ -296,9 +260,9 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn into_code(self, lib: &Library) -> Option<(Vec<Value>, CodeIndex)> {
+    pub fn into_code(self, lib: &Library) -> Option<(Vec<Value>, CodeRef)> {
         match self {
-            Self::Pointer(values, ptr) => Some((values, ptr)),
+            Self::Pointer(values, ptr) => Some((values, CodeRef { lib, idx: ptr })),
             Value::Symbol(_)
             | Value::Usize(_)
             | Value::List(_)
@@ -339,6 +303,173 @@ impl std::fmt::Debug for Value {
 pub enum Pointer {
     Code(CodeIndex),
     Sentence(SentenceIndex, usize),
+}
+
+#[derive(Clone, Copy)]
+pub struct DeclRef<'a> {
+    pub lib: &'a Library,
+    pub idx: DeclIndex,
+}
+
+impl<'a> DeclRef<'a> {
+    pub fn name(self) -> &'a str {
+        &self.lib.decls[self.idx].name
+    }
+
+    pub fn code(self) -> CodeRef<'a> {
+        CodeRef {
+            lib: self.lib,
+            idx: self.lib.decls[self.idx].code,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct CodeRef<'a> {
+    pub lib: &'a Library,
+    pub idx: CodeIndex,
+}
+
+#[derive(Clone, Copy)]
+pub enum CodeView<'a> {
+    Sentence(SentenceRef<'a>),
+    AndThen(SentenceRef<'a>, CodeRef<'a>),
+    If {
+        cond: SentenceRef<'a>,
+        true_case: CodeRef<'a>,
+        false_case: CodeRef<'a>,
+    },
+}
+
+impl<'a> CodeRef<'a> {
+    pub fn view(self) -> CodeView<'a> {
+        let code = &self.lib.codes[self.idx];
+        match code {
+            Code::Sentence(sentence_index) => CodeView::Sentence(SentenceRef {
+                lib: self.lib,
+                idx: *sentence_index,
+            }),
+            Code::AndThen(sentence_index, code_index) => CodeView::AndThen(
+                SentenceRef {
+                    lib: self.lib,
+                    idx: *sentence_index,
+                },
+                CodeRef {
+                    lib: self.lib,
+                    idx: *code_index,
+                },
+            ),
+            Code::If {
+                cond,
+                true_case,
+                false_case,
+            } => CodeView::If {
+                cond: SentenceRef {
+                    lib: self.lib,
+                    idx: *cond,
+                },
+                true_case: CodeRef {
+                    lib: self.lib,
+                    idx: *true_case,
+                },
+                false_case: CodeRef {
+                    lib: self.lib,
+                    idx: *false_case,
+                },
+            },
+        }
+    }
+
+    pub fn words(self) -> Vec<(Word, Pointer)> {
+        match self.view() {
+            CodeView::Sentence(sentence) => sentence.words().collect(),
+            CodeView::AndThen(sentence, and_then) => std::iter::once((
+                Word::Push(Value::Pointer(vec![], and_then.idx)),
+                Pointer::Code(self.idx),
+            ))
+            .chain(sentence.words().into_iter())
+            .collect(),
+            CodeView::If {
+                cond,
+                true_case,
+                false_case,
+            } => cond
+                .words()
+                .chain([
+                    (
+                        Word::Push(Value::Pointer(vec![], true_case.idx)),
+                        Pointer::Code(self.idx),
+                    ),
+                    (
+                        Word::Push(Value::Pointer(vec![], false_case.idx)),
+                        Pointer::Code(self.idx),
+                    ),
+                    (Word::Push(Value::Symbol("if")), Pointer::Code(self.idx)),
+                ])
+                .collect(),
+        }
+    }
+
+    pub fn r#type(self) -> Type {
+        self.words()
+            .into_iter()
+            .map(|(w, p)| w.r#type())
+            .fold(Type::NULL, Type::compose)
+    }
+
+    pub fn eventual_type(self) -> Type {
+        let mut t = self.r#type();
+
+        if !t
+            .judgements
+            .iter()
+            .any(|j| *j == Judgement::OutExact(0, Value::Symbol("exec")))
+        {
+            return t;
+        }
+
+        let Some((next_push, next_code)) = t.judgements.iter().find_map(|j| match j {
+            Judgement::OutExact(1, Value::Pointer(push, code)) => Some((push, *code)),
+            _ => None,
+        }) else {
+            return t;
+        };
+
+        let next_type = pointer_type(self.lib, &next_push, next_code);
+
+        t.compose(Word::Drop(0).r#type())
+            .compose(Word::Drop(0).r#type())
+            .compose(next_type)
+    }
+}
+
+fn pointer_type(lib: &Library, push: &[Value], code: CodeIndex) -> Type {
+    let push_type = push
+        .iter()
+        .map(|v| Word::Push(v.clone()).r#type())
+        .fold(Type::NULL, Type::compose);
+    push_type.compose(CodeRef { lib, idx: code }.r#type())
+}
+
+#[derive(Clone, Copy)]
+pub struct SentenceRef<'a> {
+    pub lib: &'a Library,
+    pub idx: SentenceIndex,
+}
+
+impl<'a> SentenceRef<'a> {
+    pub fn words(self) -> impl Iterator<Item = (Word, Pointer)> + 'a {
+        self.lib.sentences[self.idx]
+            .0
+            .iter()
+            .enumerate()
+            .map(move |(offset, widx)| {
+                (
+                    self.lib.words[*widx].clone(),
+                    Pointer::Sentence(self.idx, offset),
+                )
+            })
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -428,45 +559,4 @@ impl Type {
             judgements: res,
         }
     }
-}
-
-fn code_type(lib: &Library, cidx: CodeIndex) -> Type {
-    lib.code_words(cidx)
-        .into_iter()
-        .map(|(w, p)| w.r#type())
-        .reduce(Type::compose)
-        .unwrap()
-}
-
-fn ptr_type(lib: &Library, push: &[Value], code: CodeIndex) -> Type {
-    let push_type = push
-        .iter()
-        .map(|v| Word::Push(v.clone()).r#type())
-        .fold(Type::NULL, Type::compose);
-    push_type.compose(code_type(lib, code))
-}
-
-pub fn multi_code_type(lib: &Library, cidx: CodeIndex) -> Type {
-    let mut t = code_type(lib, cidx);
-
-    if !t
-        .judgements
-        .iter()
-        .any(|j| *j == Judgement::OutExact(0, Value::Symbol("exec")))
-    {
-        return t;
-    }
-
-    let Some((next_push, next_code)) = t.judgements.iter().find_map(|j| match j {
-        Judgement::OutExact(1, Value::Pointer(push, code)) => Some((push, *code)),
-        _ => None,
-    }) else {
-        return t;
-    };
-
-    let next_type = ptr_type(lib, &next_push, next_code);
-
-    t.compose(Word::Drop(0).r#type())
-        .compose(Word::Drop(0).r#type())
-        .compose(next_type)
 }
