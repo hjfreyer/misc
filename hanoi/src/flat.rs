@@ -94,7 +94,7 @@ impl Library {
                         .iter_enumerated()
                         .find(|(_, decl)| decl.name == r)
                     {
-                        Word::PushDecl(decl_idx)
+                        Word::Push(Value::Pointer(vec![], decl.code))
                     } else {
                         panic!("unknown reference: {}", r)
                     }
@@ -220,14 +220,69 @@ builtins! {
     (IsCode, is_code),
 }
 
+impl Builtin {
+    pub fn r#type(self) -> Type {
+        match self {
+            Builtin::Add => Type {
+                arity_in: 2,
+                arity_out: 1,
+                judgements: vec![],
+            },
+            Builtin::Eq => todo!(),
+            Builtin::Curry => Type {
+                arity_in: 2,
+                arity_out: 1,
+                judgements: vec![],
+            },
+            Builtin::Or => todo!(),
+            Builtin::And => todo!(),
+            Builtin::Not => todo!(),
+            Builtin::IsCode => todo!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Word {
     Push(Value),
-    PushDecl(DeclIndex),
     Copy(usize),
     Drop(usize),
     Move(usize),
     Builtin(Builtin),
+}
+
+impl Word {
+    fn r#type(self) -> Type {
+        match self {
+            Word::Push(value) => Type {
+                arity_in: 0,
+                arity_out: 1,
+                judgements: vec![Judgement::OutExact(0, value.clone())],
+            },
+            Word::Copy(idx) => Type {
+                arity_in: idx + 1,
+                arity_out: idx + 2,
+                judgements: (0..(idx + 1))
+                    .map(|i| Judgement::Eq(i, i + 1))
+                    .chain(std::iter::once(Judgement::Eq(idx, 0)))
+                    .collect(),
+            },
+            Word::Drop(idx) => Type {
+                arity_in: idx + 1,
+                arity_out: idx,
+                judgements: (0..idx).map(|i| Judgement::Eq(i, i)).collect(),
+            },
+            Word::Move(idx) => Type {
+                arity_in: idx + 1,
+                arity_out: idx + 1,
+                judgements: (0..idx)
+                    .map(|i| Judgement::Eq(i, i + 1))
+                    .chain(std::iter::once(Judgement::Eq(idx, 0)))
+                    .collect(),
+            },
+            Word::Builtin(builtin) => builtin.r#type(),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -284,4 +339,134 @@ impl std::fmt::Debug for Value {
 pub enum Pointer {
     Code(CodeIndex),
     Sentence(SentenceIndex, usize),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum Judgement {
+    Eq(usize, usize),
+    OutExact(usize, Value),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Type {
+    pub arity_in: usize,
+    pub arity_out: usize,
+    pub judgements: Vec<Judgement>,
+}
+
+impl Type {
+    const NULL: Self = Type {
+        arity_in: 0,
+        arity_out: 0,
+        judgements: vec![],
+    };
+
+    fn pad(&self) -> Self {
+        Type {
+            arity_in: self.arity_in + 1,
+            arity_out: self.arity_out + 1,
+            judgements: self
+                .judgements
+                .iter()
+                .cloned()
+                .chain(std::iter::once(Judgement::Eq(
+                    self.arity_in,
+                    self.arity_out,
+                )))
+                .collect(),
+        }
+    }
+
+    pub fn compose(mut self, mut other: Self) -> Self {
+        while self.arity_out < other.arity_in {
+            self = self.pad()
+        }
+        while other.arity_in < self.arity_out {
+            other = other.pad()
+        }
+
+        let mut res: Vec<Judgement> = vec![];
+        for j1 in self.judgements {
+            match j1 {
+                Judgement::Eq(i1, o1) => {
+                    for j2 in other.judgements.iter() {
+                        match j2 {
+                            Judgement::Eq(i2, o2) => {
+                                if o1 == *i2 {
+                                    res.push(Judgement::Eq(i1, *o2));
+                                }
+                            }
+                            Judgement::OutExact(_, _) => {}
+                        }
+                    }
+                }
+                Judgement::OutExact(o1, value) => {
+                    for j2 in other.judgements.iter() {
+                        match j2 {
+                            Judgement::Eq(i2, o2) => {
+                                if o1 == *i2 {
+                                    res.push(Judgement::OutExact(*o2, value.clone()));
+                                }
+                            }
+                            Judgement::OutExact(_, _) => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        for j2 in other.judgements {
+            match j2 {
+                Judgement::Eq(i2, o2) => {}
+                Judgement::OutExact(o, value) => res.push(Judgement::OutExact(o, value)),
+            }
+        }
+
+        Type {
+            arity_in: self.arity_in,
+            arity_out: other.arity_out,
+            judgements: res,
+        }
+    }
+}
+
+fn code_type(lib: &Library, cidx: CodeIndex) -> Type {
+    lib.code_words(cidx)
+        .into_iter()
+        .map(|(w, p)| w.r#type())
+        .reduce(Type::compose)
+        .unwrap()
+}
+
+fn ptr_type(lib: &Library, push: &[Value], code: CodeIndex) -> Type {
+    let push_type = push
+        .iter()
+        .map(|v| Word::Push(v.clone()).r#type())
+        .fold(Type::NULL, Type::compose);
+    push_type.compose(code_type(lib, code))
+}
+
+pub fn multi_code_type(lib: &Library, cidx: CodeIndex) -> Type {
+    let mut t = code_type(lib, cidx);
+
+    if !t
+        .judgements
+        .iter()
+        .any(|j| *j == Judgement::OutExact(0, Value::Symbol("exec")))
+    {
+        return t;
+    }
+
+    let Some((next_push, next_code)) = t.judgements.iter().find_map(|j| match j {
+        Judgement::OutExact(1, Value::Pointer(push, code)) => Some((push, *code)),
+        _ => None,
+    }) else {
+        return t;
+    };
+
+    let next_type = ptr_type(lib, &next_push, next_code);
+
+    t.compose(Word::Drop(0).r#type())
+        .compose(Word::Drop(0).r#type())
+        .compose(next_type)
 }

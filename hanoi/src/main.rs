@@ -63,9 +63,6 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
             });
             stack.push(value)
         }
-        Word::PushDecl(decl_index) => {
-            stack.push(Value::Pointer(vec![], lib.decls[*decl_index].code))
-        }
         Word::Builtin(Builtin::And) => {
             let Some(Value::Bool(a)) = stack.pop() else {
                 panic!("bad value")
@@ -378,208 +375,8 @@ fn print_word(lib: &Library, word_idx: WordIndex, styles: &Styles) -> Span<'stat
         Word::Copy(i) => format!("copy({})", i).into(),
         Word::Drop(i) => format!("drop({})", i).into(),
         Word::Move(i) => format!("mv({})", i).into(),
-        Word::PushDecl(decl_idx) => lib.decls[*decl_idx].name.clone().into(),
     };
     res.style(styles.words[word_idx])
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Judgement {
-    Eq(usize, usize),
-    OutExact(usize, Value),
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Type {
-    pub arity_in: usize,
-    pub arity_out: usize,
-    pub judgements: Vec<Judgement>,
-}
-
-impl Type {
-    pub fn pad(&self) -> Self {
-        Type {
-            arity_in: self.arity_in + 1,
-            arity_out: self.arity_out + 1,
-            judgements: self
-                .judgements
-                .iter()
-                .cloned()
-                .chain(std::iter::once(Judgement::Eq(
-                    self.arity_in,
-                    self.arity_out,
-                )))
-                .collect(),
-        }
-    }
-}
-
-fn get_type(lib: &Library, w: Word) -> Type {
-    match w {
-        Word::Push(value) => Type {
-            arity_in: 0,
-            arity_out: 1,
-            judgements: vec![Judgement::OutExact(0, value.clone())],
-        },
-        Word::PushDecl(decl_index) => Type {
-            arity_in: 0,
-            arity_out: 1,
-            judgements: vec![Judgement::OutExact(
-                0,
-                Value::Pointer(vec![], lib.decls[decl_index].code),
-            )],
-        },
-        Word::Copy(idx) => Type {
-            arity_in: idx + 1,
-            arity_out: idx + 2,
-            judgements: (0..(idx + 1))
-                .map(|i| Judgement::Eq(i, i + 1))
-                .chain(std::iter::once(Judgement::Eq(idx, 0)))
-                .collect(),
-        },
-        Word::Drop(idx) => Type {
-            arity_in: idx + 1,
-            arity_out: idx,
-            judgements: (0..idx).map(|i| Judgement::Eq(i, i)).collect(),
-        },
-        Word::Move(idx) => Type {
-            arity_in: idx + 1,
-            arity_out: idx + 1,
-            judgements: (0..idx)
-                .map(|i| Judgement::Eq(i, i + 1))
-                .chain(std::iter::once(Judgement::Eq(idx, 0)))
-                .collect(),
-        },
-        Word::Builtin(builtin) => match builtin {
-            Builtin::Add => Type {
-                arity_in: 2,
-                arity_out: 1,
-                judgements: vec![],
-            },
-            Builtin::Eq => todo!(),
-            Builtin::Curry => Type {
-                arity_in: 2,
-                arity_out: 1,
-                judgements: vec![],
-            },
-            Builtin::Or => todo!(),
-            Builtin::And => todo!(),
-            Builtin::Not => todo!(),
-            Builtin::IsCode => todo!(),
-        },
-    }
-}
-
-fn compose_types(mut t1: Type, mut t2: Type) -> Type {
-    while t1.arity_out < t2.arity_in {
-        t1 = t1.pad()
-    }
-    while t2.arity_in < t1.arity_out {
-        t2 = t2.pad()
-    }
-
-    let mut res: Vec<Judgement> = vec![];
-    for j1 in t1.judgements {
-        match j1 {
-            Judgement::Eq(i1, o1) => {
-                for j2 in t2.judgements.iter() {
-                    match j2 {
-                        Judgement::Eq(i2, o2) => {
-                            if o1 == *i2 {
-                                res.push(Judgement::Eq(i1, *o2));
-                            }
-                        }
-                        Judgement::OutExact(_, _) => {}
-                    }
-                }
-            }
-            Judgement::OutExact(o1, value) => {
-                for j2 in t2.judgements.iter() {
-                    match j2 {
-                        Judgement::Eq(i2, o2) => {
-                            if o1 == *i2 {
-                                res.push(Judgement::OutExact(*o2, value.clone()));
-                            }
-                        }
-                        Judgement::OutExact(_, _) => {}
-                    }
-                }
-            }
-        }
-    }
-
-    for j2 in t2.judgements {
-        match j2 {
-            Judgement::Eq(i2, o2) => {}
-            Judgement::OutExact(o, value) => res.push(Judgement::OutExact(o, value)),
-        }
-    }
-
-    Type {
-        arity_in: t1.arity_in,
-        arity_out: t2.arity_out,
-        judgements: res,
-    }
-}
-
-fn sentence_type(lib: &Library, sidx: SentenceIndex) -> Type {
-    lib.sentence_words(sidx)
-        .into_iter()
-        .map(|(w, p)| get_type(lib, w))
-        .reduce(compose_types)
-        .unwrap()
-}
-
-fn code_type(lib: &Library, cidx: CodeIndex) -> Type {
-    lib.code_words(cidx)
-        .into_iter()
-        .map(|(w, p)| get_type(lib, w))
-        .reduce(compose_types)
-        .unwrap()
-}
-
-fn ptr_type(lib: &Library, push: &[Value], code: CodeIndex) -> Type {
-    if push.is_empty() {
-        code_type(lib, code)
-    } else {
-        let push_type = push
-            .iter()
-            .map(|v| get_type(lib, Word::Push(v.clone())))
-            .reduce(compose_types)
-            .unwrap();
-        compose_types(push_type, code_type(lib, code))
-    }
-}
-
-fn multi_code_type(lib: &Library, cidx: CodeIndex) -> Type {
-    let mut t = code_type(lib, cidx);
-
-    if !t
-        .judgements
-        .iter()
-        .any(|j| *j == Judgement::OutExact(0, Value::Symbol("exec")))
-    {
-        return t;
-    }
-
-    let Some((next_push, next_code)) = t.judgements.iter().find_map(|j| match j {
-        Judgement::OutExact(1, Value::Pointer(push, code)) => Some((push, *code)),
-        _ => None,
-    }) else {
-        return t;
-    };
-
-    let next_type = ptr_type(lib, &next_push, next_code);
-
-    vec![
-        t,
-        get_type(lib, Word::Drop(0)),
-        get_type(lib, Word::Drop(0)),
-        next_type,
-    ]
-    .into_iter()
-    .reduce(compose_types)
-    .unwrap()
 }
 
 fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Result<()> {
@@ -671,6 +468,8 @@ fn main() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use flat::{multi_code_type, Judgement, Type};
+
     use super::*;
 
     #[test]
@@ -778,7 +577,7 @@ mod tests {
                 judgements: vec![
                     Judgement::Eq(0, 1),
                     Judgement::OutExact(2, Value::Symbol("yield")),
-                    Judgement::OutExact(0, Value::Symbol("exec")),                    
+                    Judgement::OutExact(0, Value::Symbol("exec")),
                 ]
             }
         )
