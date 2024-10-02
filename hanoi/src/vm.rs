@@ -92,7 +92,7 @@ fn control_flow(
     let Some(Value::Symbol(op)) = stack.pop() else {
         panic!("bad value")
     };
-    match op {
+    let (push, next) = match op {
         // "malloc" => {
         //     let Some(Value::Usize(size)) = stack.pop() else {
         //         panic!()
@@ -138,28 +138,27 @@ fn control_flow(
         //     Some(next.into_words())
         // }
         "if" => {
-            let (false_curry, false_case) = stack.pop().unwrap().into_code(lib).unwrap();
-            let (true_curry, true_case) = stack.pop().unwrap().into_code(lib).unwrap();
+            let false_case = stack.pop().unwrap().into_code(lib).unwrap();
+            let true_case = stack.pop().unwrap().into_code(lib).unwrap();
             let Some(Value::Bool(cond)) = stack.pop() else {
                 panic!()
             };
             if cond {
-                stack.extend(true_curry);
-                Some(true_case.words())
+                Some(true_case)
             } else {
-                stack.extend(false_curry);
-                Some(false_case.words())
+                Some(false_case)
             }
         }
         "exec" => {
-            let (push, next) = stack.pop().unwrap().into_code(lib).unwrap();
-            stack.extend(push);
-            Some(next.words())
+            Some(stack.pop().unwrap().into_code(lib).unwrap())
         }
         "assert" => None,
         // "halt" => None,
         unk => panic!("unknown symbol: {}", unk),
-    }
+    }?;
+
+    stack.extend(push);
+    Some(next.words())
 }
 
 pub struct Vm {
