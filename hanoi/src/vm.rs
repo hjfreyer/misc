@@ -1,6 +1,8 @@
+use typed_index_collections::TiSliceIndex;
+
 use crate::{
     ast,
-    flat::{Builtin, Library, Pointer, Value, Word},
+    flat::{Builtin, EntryView, Library, NamespaceRef, Pointer, Value, Word},
 };
 
 fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
@@ -70,6 +72,20 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
                 panic!("bad value")
             };
             stack.push(Value::Bool(!a));
+        }
+        Word::Builtin(Builtin::Get) => {
+            let Some(Value::Namespace(ns_idx)) = stack.pop() else {
+                panic!("bad value")
+            };
+            let Some(Value::Symbol(name)) = stack.pop() else {
+                panic!("bad value")
+            };
+            let ns = NamespaceRef { lib, idx: ns_idx };
+
+            stack.push(match ns.get(name).unwrap() {
+                crate::flat::EntryView::Code(code) => Value::Pointer(vec![], code.idx),
+                crate::flat::EntryView::Namespace(ns) => Value::Namespace(ns.idx),
+            });
         }
     }
 }
@@ -149,9 +165,7 @@ fn control_flow(
                 Some(false_case)
             }
         }
-        "exec" => {
-            Some(stack.pop().unwrap().into_code(lib).unwrap())
-        }
+        "exec" => Some(stack.pop().unwrap().into_code(lib).unwrap()),
         "assert" => None,
         // "halt" => None,
         unk => panic!("unknown symbol: {}", unk),
@@ -169,18 +183,14 @@ pub struct Vm {
 }
 
 impl Vm {
-    pub fn new(ast: ast::Library) -> Self {
+    pub fn new(ast: ast::Namespace) -> Self {
         let lib = Library::from_ast(ast);
 
-        let prog = lib
-            .decls()
-            .last()
-            .unwrap()
-            .code()
-            .words()
-            .into_iter()
-            .rev()
-            .collect();
+        let EntryView::Code(main) = lib.root_namespace().get("main").unwrap() else {
+            panic!("not code")
+        };
+
+        let prog = main.words().into_iter().rev().collect();
         Vm {
             lib,
             prog,
@@ -191,7 +201,7 @@ impl Vm {
 
     pub fn step(&mut self) -> bool {
         if let Some((word, ptr)) = self.prog.pop() {
-            eprintln!("word: {:?}", word);
+            // eprintln!("word: {:?}", word);
             eval(&self.lib, &mut self.stack, &word);
             true
         } else {

@@ -70,7 +70,7 @@ macro_rules! value {
 
 macro_rules! lib {
     (@lib () ()) => {
-        ast::Library {
+        ast::Namespace {
             decls: vec![],
         }
     };
@@ -78,8 +78,8 @@ macro_rules! lib {
         {
             let mut lib = lib!($($tail)*);
             lib.decls.insert(0, ast::Decl {
-                name: stringify!($name).to_string(),
-                value: value!(@code () ($($code)*)),
+                name: stringify!($name),
+                value: ast::DeclValue::Code(value!(@code () ($($code)*))),
             });
             lib
         }

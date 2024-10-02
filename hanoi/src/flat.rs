@@ -1,10 +1,9 @@
+use std::collections::HashMap;
+
 use derive_more::derive::{From, Into};
 use typed_index_collections::TiVec;
 
 use crate::ast::{self, Expression};
-
-#[derive(From, Into, Debug, Copy, Clone, PartialEq, Eq)]
-pub struct DeclIndex(usize);
 
 #[derive(From, Into, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct CodeIndex(usize);
@@ -15,45 +14,60 @@ pub struct SentenceIndex(usize);
 #[derive(From, Into, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct WordIndex(usize);
 
+#[derive(From, Into, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct NamespaceIndex(usize);
+
 #[derive(Debug, Clone, Default)]
 pub struct Library {
-    pub decls: TiVec<DeclIndex, Decl>,
+    pub namespaces: TiVec<NamespaceIndex, Namespace>,
     pub codes: TiVec<CodeIndex, Code>,
     pub sentences: TiVec<SentenceIndex, Sentence>,
     pub words: TiVec<WordIndex, Word>,
+}
 
-    pub code_to_decl: TiVec<CodeIndex, DeclIndex>,
+#[derive(Debug, Clone, Default)]
+pub struct Namespace(pub Vec<(&'static str, Entry)>);
+
+#[derive(Debug, Clone)]
+pub enum Entry {
+    Code(CodeIndex),
+    Namespace(NamespaceIndex),
 }
 
 impl Library {
-    pub fn from_ast(lib: ast::Library) -> Self {
+    pub fn from_ast(lib: ast::Namespace) -> Self {
         let mut res = Self::default();
-        res.fill(lib);
+        res.visit_ns(lib);
         res
     }
 
-    pub fn decls(&self) -> impl Iterator<Item = DeclRef> + '_ {
-        self.decls.keys().map(|idx| DeclRef { lib: self, idx })
-    }
-
-    fn fill(&mut self, lib: ast::Library) {
-        self.decls = TiVec::new();
-        for decl in lib.decls {
-            self.visit_decl(decl);
-        }
-
-        self.code_to_decl = self.codes.iter().map(|_| DeclIndex(usize::MAX)).collect();
-        for decl in self.decls.keys() {
-            self.index_decl(decl);
+    pub fn root_namespace(&self) -> NamespaceRef<'_> {
+        NamespaceRef {
+            lib: self,
+            idx: self.namespaces.first_key().unwrap(),
         }
     }
 
-    fn visit_decl(&mut self, decl: ast::Decl) -> DeclIndex {
-        let new_code = self.visit_code(decl.value);
-        self.decls.push_and_get_key(Decl {
-            name: decl.name,
-            code: new_code,
-        })
+    fn visit_ns(&mut self, ns: ast::Namespace) -> NamespaceIndex {
+        let ns_idx = self.namespaces.push_and_get_key(Namespace::default());
+
+        for decl in ns.decls {
+            match decl.value {
+                ast::DeclValue::Namespace(namespace) => {
+                    let subns = self.visit_ns(namespace);
+                    self.namespaces[ns_idx]
+                        .0
+                        .push((decl.name, Entry::Namespace(subns)));
+                }
+                ast::DeclValue::Code(code) => {
+                    let code_idx = self.visit_code(code);
+                    self.namespaces[ns_idx]
+                        .0
+                        .push((decl.name, Entry::Code(code_idx)));
+                }
+            }
+        }
+        ns_idx
     }
 
     fn visit_code(&mut self, code: ast::Code) -> CodeIndex {
@@ -85,6 +99,7 @@ impl Library {
             Expression::Symbol(v) => Word::Push(Value::Symbol(v)),
             Expression::Usize(v) => Word::Push(Value::Usize(v)),
             Expression::Bool(v) => Word::Push(Value::Bool(v)),
+            Expression::Value(v) => Word::Push(v),
             Expression::FunctionLike("copy", idx) => Word::Copy(idx),
             Expression::FunctionLike("drop", idx) => Word::Drop(idx),
             Expression::FunctionLike("mv", idx) => Word::Move(idx),
@@ -93,45 +108,25 @@ impl Library {
                 if let Some(builtin) = Builtin::ALL.iter().find(|builtin| builtin.name() == r) {
                     Word::Builtin(*builtin)
                 } else {
-                    if let Some((decl_idx, decl)) = self
-                        .decls
-                        .iter_enumerated()
-                        .find(|(_, decl)| decl.name == r)
-                    {
-                        Word::Push(Value::Pointer(vec![], decl.code))
-                    } else {
-                        panic!("unknown reference: {}", r)
-                    }
+                    // if let Some((decl_idx, decl)) = self
+                    //     .decls
+                    //     .iter_enumerated()
+                    //     .find(|(_, decl)| decl.name == r)
+                    // {
+                    //     Word::Push(Value::Pointer(vec![], decl.code))
+                    // } else {
+                    panic!("unknown reference: {}", r)
+                    // }
                 }
             }
         };
         self.words.push_and_get_key(w)
     }
-
-    fn index_decl(&mut self, idx: DeclIndex) {
-        self.index_code(idx, self.decls[idx].code)
-    }
-
-    fn index_code(&mut self, decl_idx: DeclIndex, code_idx: CodeIndex) {
-        self.code_to_decl[code_idx] = decl_idx;
-        match &self.codes[code_idx] {
-            Code::Sentence(sentence_index) => {}
-            Code::AndThen(sentence_index, code_idx) => self.index_code(decl_idx, *code_idx),
-            &Code::If {
-                cond,
-                true_case,
-                false_case,
-            } => {
-                self.index_code(decl_idx, true_case);
-                self.index_code(decl_idx, false_case);
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Decl {
-    pub name: String,
+    pub name: &'static str,
     pub code: CodeIndex,
 }
 
@@ -182,6 +177,7 @@ builtins! {
     (And, and),
     (Not, not),
     (IsCode, is_code),
+    (Get, get),
 }
 
 impl Builtin {
@@ -202,6 +198,7 @@ impl Builtin {
             Builtin::And => todo!(),
             Builtin::Not => todo!(),
             Builtin::IsCode => todo!(),
+            Builtin::Get => todo!(),
         }
     }
 }
@@ -257,6 +254,7 @@ pub enum Value {
     Pointer(Vec<Value>, CodeIndex),
     Handle(usize),
     Bool(bool),
+    Namespace(NamespaceIndex),
 }
 
 impl Value {
@@ -266,6 +264,7 @@ impl Value {
             Value::Symbol(_)
             | Value::Usize(_)
             | Value::List(_)
+            | Value::Namespace(_)
             | Value::Bool(_)
             | Value::Handle(_) => None,
         }
@@ -277,10 +276,12 @@ impl Value {
             Self::Usize(arg0) => write!(f, "{}", arg0),
             Self::List(arg0) => todo!(),
             Self::Handle(arg0) => todo!(),
+            Self::Namespace(arg0) => write!(f, "ns({})", arg0.0),
             Self::Bool(arg0) => write!(f, "{}", arg0),
             Self::Pointer(values, ptr) => {
-                let decl = &lib.decls[lib.code_to_decl[*ptr]];
-                write!(f, "{:?}{}#{}", values, decl.name, ptr.0)
+                // let decl = &lib.decls[lib.code_to_decl[*ptr]];
+                // write!(f, "{:?}{}#{}", values, decl.name, ptr.0)
+                write!(f, "ptr({})", ptr.0)
             }
         }
     }
@@ -295,6 +296,7 @@ impl std::fmt::Debug for Value {
             Self::Handle(arg0) => f.debug_tuple("Handle").field(arg0).finish(),
             Self::Bool(arg0) => write!(f, "{}", arg0),
             Self::Pointer(values, ptr) => write!(f, "[{:?}]({:?})", values, ptr),
+            Self::Namespace(arg0) => f.debug_tuple("Namespace").field(arg0).finish(),
         }
     }
 }
@@ -306,22 +308,44 @@ pub enum Pointer {
 }
 
 #[derive(Clone, Copy)]
-pub struct DeclRef<'a> {
+pub struct NamespaceRef<'a> {
     pub lib: &'a Library,
-    pub idx: DeclIndex,
+    pub idx: NamespaceIndex,
 }
 
-impl<'a> DeclRef<'a> {
-    pub fn name(self) -> &'a str {
-        &self.lib.decls[self.idx].name
+impl<'a> NamespaceRef<'a> {
+    pub fn entries(self) -> impl Iterator<Item = (&'static str, EntryView<'a>)> + 'a {
+        self.lib.namespaces[self.idx]
+            .0
+            .iter()
+            .map(|(name, entry)| match entry {
+                Entry::Code(code_index) => (
+                    *name,
+                    EntryView::Code(CodeRef {
+                        lib: self.lib,
+                        idx: *code_index,
+                    }),
+                ),
+                Entry::Namespace(namespace_index) => (
+                    *name,
+                    EntryView::Namespace(NamespaceRef {
+                        lib: self.lib,
+                        idx: *namespace_index,
+                    }),
+                ),
+            })
     }
 
-    pub fn code(self) -> CodeRef<'a> {
-        CodeRef {
-            lib: self.lib,
-            idx: self.lib.decls[self.idx].code,
-        }
+    pub fn get(self, name: &'static str) -> Option<EntryView<'a>> {
+        self.entries()
+            .find_map(|(n, e)| if name == n { Some(e) } else { None })
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum EntryView<'a> {
+    Code(CodeRef<'a>),
+    Namespace(NamespaceRef<'a>),
 }
 
 #[derive(Clone, Copy)]

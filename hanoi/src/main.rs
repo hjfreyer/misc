@@ -8,8 +8,8 @@ mod macros;
 mod vm;
 
 use flat::{
-    Builtin, Code, CodeIndex, CodeRef, CodeView, DeclIndex, DeclRef, Library, Pointer,
-    SentenceIndex, SentenceRef, Value, Word, WordIndex,
+    Builtin, Code, CodeIndex, CodeRef, CodeView, Entry, EntryView, Library, Namespace,
+    NamespaceIndex, Pointer, SentenceIndex, SentenceRef, Value, Word, WordIndex,
 };
 use itertools::Itertools;
 use ratatui::{
@@ -21,7 +21,7 @@ use ratatui::{
     DefaultTerminal, Frame,
 };
 use typed_index_collections::TiVec;
-use vm::Vm;
+use vm::{Arena, Vm};
 
 struct Debugger {
     vm: Vm,
@@ -99,17 +99,30 @@ pub struct Styles {
 }
 
 pub fn print_lib(lib: &Library, styles: &Styles) -> Text<'static> {
-    let mut res = Text::default();
-    for decl in lib.decls() {
-        res.extend(print_decl(decl, styles))
-    }
-    res
-}
-
-fn print_decl(decl: DeclRef, styles: &Styles) -> Text<'static> {
-    std::iter::once(Line::raw(format!("let {} = {{", decl.name())))
-        .chain(print_code(decl.code(), 2, styles, Style::new()).into_iter())
-        .chain(std::iter::once("}".into()))
+    lib.namespaces
+        .first()
+        .unwrap()
+        .0
+        .iter()
+        .flat_map(|(name, entry)| match entry {
+            flat::Entry::Code(code_index) => {
+                std::iter::once(Line::raw(format!("let {} = {{", name)))
+                    .chain(
+                        print_code(
+                            CodeRef {
+                                lib,
+                                idx: *code_index,
+                            },
+                            2,
+                            styles,
+                            Style::new(),
+                        )
+                        .into_iter(),
+                    )
+                    .chain(std::iter::once("}".into()))
+            }
+            flat::Entry::Namespace(namespace_index) => todo!(),
+        })
         .collect()
 }
 
@@ -207,88 +220,104 @@ fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Result
 }
 
 fn main() -> std::io::Result<()> {
-    let mut vm = Vm::new(lib! {
-        let map_rec = {
-            // (caller fn iter self next)
-            mv(2) *exec;
-            // (caller fn self (iternext val *yield)|(*ok))
-            copy(0) *ok eq if {
-                // (caller fn self *ok)
-                drop(1) drop(1) mv(1) *exec
-            } else {
-                // (caller fn self iternext val *yield)
-                copy(0) *yield eq if {
-                    // (caller fn self iternext val *yield next)
-                    mv(2) copy(5)
-                    // (caller fn self iternext *yield next val fn)
-                    *exec;
-                    // (caller fn self iternext *yield mapped *ok)
-                    *ok eq if {
-                        // (caller fn self iternext *yield mapped)
-                        mv(4) mv(3) mv(4)
-                        // (caller *yield mapped fn iternext self)
-                        copy(0) curry curry curry
-                        // (caller *yield mapped mapnext)
-                        mv(1) mv(2) mv(3) *exec
-                    } else {
-                        *panic
-                    }
-                } else {
-                    *panic
-                }
-            }
-        };
+    let lib_ast = lib! {
+        // let map_rec = {
+        //     // (caller fn iter self next)
+        //     mv(2) *exec;
+        //     // (caller fn self (iternext val *yield)|(*ok))
+        //     copy(0) *ok eq if {
+        //         // (caller fn self *ok)
+        //         drop(1) drop(1) mv(1) *exec
+        //     } else {
+        //         // (caller fn self iternext val *yield)
+        //         copy(0) *yield eq if {
+        //             // (caller fn self iternext val *yield next)
+        //             mv(2) copy(5)
+        //             // (caller fn self iternext *yield next val fn)
+        //             *exec;
+        //             // (caller fn self iternext *yield mapped *ok)
+        //             *ok eq if {
+        //                 // (caller fn self iternext *yield mapped)
+        //                 mv(4) mv(3) mv(4)
+        //                 // (caller *yield mapped fn iternext self)
+        //                 copy(0) curry curry curry
+        //                 // (caller *yield mapped mapnext)
+        //                 mv(1) mv(2) mv(3) *exec
+        //             } else {
+        //                 *panic
+        //             }
+        //         } else {
+        //             *panic
+        //         }
+        //     }
+        // };
 
-        let map = {
-            // (caller fn iter)
-            map_rec map_rec *exec
-        };
+        // let map = {
+        //     // (caller fn iter)
+        //     map_rec map_rec *exec
+        // };
 
-        let count_rec = {
-            // (caller self i)
-            #1 add
-            // (caller self (i+1))
-            copy(0)
-            // (caller self (i+1) (i+1))
-            mv(2)
-            // (caller (i+1) (i+1) self)
-            mv(2)
-            // (caller (i+1) self (i+1))
-            copy(1)
-            // (caller (i+1) self (i+1) self)
-            curry
-            // (caller (i+1) self [(i+1)](self))
-            curry
-            // (caller (i+1) [self, (i+1)](self))
-            mv(1)
-            // (caller nextiter (i+1))
-            *yield
-            // (caller nextiter (i+1) *yield)
-            mv(3) *exec
-        };
+        // let count_rec = {
+        //     // (caller self i)
+        //     #1 add
+        //     // (caller self (i+1))
+        //     copy(0)
+        //     // (caller self (i+1) (i+1))
+        //     mv(2)
+        //     // (caller (i+1) (i+1) self)
+        //     mv(2)
+        //     // (caller (i+1) self (i+1))
+        //     copy(1)
+        //     // (caller (i+1) self (i+1) self)
+        //     curry
+        //     // (caller (i+1) self [(i+1)](self))
+        //     curry
+        //     // (caller (i+1) [self, (i+1)](self))
+        //     mv(1)
+        //     // (caller nextiter (i+1))
+        //     *yield
+        //     // (caller nextiter (i+1) *yield)
+        //     mv(3) *exec
+        // };
 
-        let count = {
-            count_rec #0 count_rec *exec
-        };
+        // let count = {
+        //     count_rec #0 count_rec *exec
+        // };
 
         let double = {
             // (caller n)
             copy(0) add *ok mv(2) *exec
         };
 
-        let main_rec = {
-            // (iter self next)
-            mv(2) *exec;
-            // (self iternext val *yield)
-            drop(0) drop(0) mv(1) copy(0)
-            // (iternext self self)
-            *exec
-        };
+        // let main_rec = {
+        //     // (iter self next)
+        //     mv(2) *exec;
+        //     // (self iternext val *yield)
+        //     drop(0) drop(0) mv(1) copy(0)
+        //     // (iternext self self)
+        //     *exec
+        // };
 
         let main = {
-            double count map curry curry main_rec main_rec *exec
+            #3 *double #(Value::Namespace(0.into())) get *exec;
+            // double count map curry curry main_rec main_rec *exec
         };
-    });
+    };
+
+    let lib = Library::from_ast(lib_ast);
+
+    let EntryView::Code(main) = lib.root_namespace().get("main").unwrap() else {
+        panic!()
+    };
+
+    let prog = main.words().into_iter().rev().collect();
+
+    let mut vm = Vm {
+        lib,
+        prog,
+        stack: vec![],
+        arena: Arena { buffers: vec![] },
+    };
 
     let debugger = Debugger {
         vm,
@@ -367,56 +396,56 @@ mod tests {
         });
 
         while vm.step() {
-            println!("{:?}", vm.stack)
+            // println!("{:?}", vm.stack)
         }
 
         assert_eq!(vm.stack, vec![Value::Bool(true)])
     }
 
-    #[test]
-    fn basic_type() {
-        let mut vm = Vm::new(lib! {
-            let count_rec = {
-                // (caller self i)
-                #1 add
-                // (caller self (i+1))
-                copy(0)
-                // (caller self (i+1) (i+1))
-                mv(2)
-                // (caller (i+1) (i+1) self)
-                mv(2)
-                // (caller (i+1) self (i+1))
-                copy(1)
-                // (caller (i+1) self (i+1) self)
-                curry
-                // (caller (i+1) self [(i+1)](self))
-                curry
-                // (caller (i+1) [self, (i+1)](self))
-                mv(1)
-                // (caller nextiter (i+1))
-                *yield
-                // (caller nextiter (i+1) *yield)
-                mv(3) *exec
-            };
+    // #[test]
+    // fn basic_type() {
+    //     let mut vm = Vm::new(lib! {
+    //         let count_rec = {
+    //             // (caller self i)
+    //             #1 add
+    //             // (caller self (i+1))
+    //             copy(0)
+    //             // (caller self (i+1) (i+1))
+    //             mv(2)
+    //             // (caller (i+1) (i+1) self)
+    //             mv(2)
+    //             // (caller (i+1) self (i+1))
+    //             copy(1)
+    //             // (caller (i+1) self (i+1) self)
+    //             curry
+    //             // (caller (i+1) self [(i+1)](self))
+    //             curry
+    //             // (caller (i+1) [self, (i+1)](self))
+    //             mv(1)
+    //             // (caller nextiter (i+1))
+    //             *yield
+    //             // (caller nextiter (i+1) *yield)
+    //             mv(3) *exec
+    //         };
 
-            let count = {
-                count_rec #0 count_rec *exec
-            };
-        });
+    //         let count = {
+    //             count_rec #0 count_rec *exec
+    //         };
+    //     });
 
-        let mut count_type = vm.lib.decls().last().unwrap().code().eventual_type();
+    //     let mut count_type = vm.lib.decls().last().unwrap().code().eventual_type();
 
-        assert_eq!(
-            count_type,
-            Type {
-                arity_in: 1,
-                arity_out: 5,
-                judgements: vec![
-                    Judgement::Eq(0, 1),
-                    Judgement::OutExact(2, Value::Symbol("yield")),
-                    Judgement::OutExact(0, Value::Symbol("exec")),
-                ]
-            }
-        )
-    }
+    //     assert_eq!(
+    //         count_type,
+    //         Type {
+    //             arity_in: 1,
+    //             arity_out: 5,
+    //             judgements: vec![
+    //                 Judgement::Eq(0, 1),
+    //                 Judgement::OutExact(2, Value::Symbol("yield")),
+    //                 Judgement::OutExact(0, Value::Symbol("exec")),
+    //             ]
+    //         }
+    //     )
+    // }
 }

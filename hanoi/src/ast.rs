@@ -1,12 +1,20 @@
+use crate::flat::Value;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Library {
+pub struct Namespace {
     pub decls: Vec<Decl>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Decl {
-    pub name: String,
-    pub value: Code,
+    pub name: &'static str,
+    pub value: DeclValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DeclValue {
+    Namespace(Namespace),
+    Code(Code),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,6 +22,7 @@ pub enum Expression {
     Symbol(&'static str),
     Reference(&'static str),
     FunctionLike(&'static str, usize),
+    Value(Value),
     Usize(usize),
     Bool(bool),
 }
@@ -27,6 +36,12 @@ impl From<bool> for Expression {
 impl From<usize> for Expression {
     fn from(value: usize) -> Self {
         Self::Usize(value)
+    }
+}
+
+impl From<Value> for Expression {
+    fn from(value: Value) -> Self {
+        Self::Value(value)
     }
 }
 
