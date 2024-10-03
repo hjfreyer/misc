@@ -2,8 +2,6 @@
 
 mod ast;
 mod flat;
-#[macro_use]
-mod macros;
 
 mod vm;
 
@@ -12,6 +10,8 @@ use flat::{
     NamespaceIndex, Pointer, SentenceIndex, SentenceRef, Value, Word, WordIndex,
 };
 use itertools::Itertools;
+use pest::Parser;
+use pest_derive::Parser;
 use ratatui::{
     crossterm::event::{self, KeyEventKind},
     layout::{Constraint, Layout},
@@ -218,9 +218,28 @@ fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Result
         }
     }
 }
-
 fn main() -> std::io::Result<()> {
-    let lib_ast = lib! {
+    let ast = ast::Module::from_str(
+        "
+let foo = {
+    todo 
+};
+
+let count = {
+    count_rec #0 count_rec mv(1) *exec;
+    foo if {
+        yay
+    } else {
+        boo
+    }
+};
+    ",
+    )
+    .unwrap();
+    println!("{:?}", ast);
+
+    return Ok(());
+    // let lib_ast = lib! {
         // let map_rec = {
         //     // (caller fn iter self next)
         //     mv(2) *exec;
@@ -284,10 +303,10 @@ fn main() -> std::io::Result<()> {
         //     count_rec #0 count_rec *exec
         // };
 
-        let double = {
-            // (caller n)
-            copy(0) add *ok mv(2) *exec
-        };
+    //     let double = {
+    //         // (caller n)
+    //         copy(0) add *ok mv(2) *exec
+    //     };
 
         // let main_rec = {
         //     // (iter self next)
@@ -298,13 +317,13 @@ fn main() -> std::io::Result<()> {
         //     *exec
         // };
 
-        let main = {
-            #3 *double #(Value::Namespace(0.into())) get *exec;
-            // double count map curry curry main_rec main_rec *exec
-        };
-    };
+    //     let main = {
+    //         #3 *double #(Value::Namespace(0.into())) get *exec;
+    //         // double count map curry curry main_rec main_rec *exec
+    //     };
+    // };
 
-    let lib = Library::from_ast(lib_ast);
+    let lib = Library::from_ast(todo!());
 
     let EntryView::Code(main) = lib.root_namespace().get("main").unwrap() else {
         panic!()
@@ -338,69 +357,69 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn basic_assert() {
-        let mut vm = Vm::new(lib! {
-            let true_test = { #true *assert };
-        });
+    // #[test]
+    // fn basic_assert() {
+    //     let mut vm = Vm::new(lib! {
+    //         let true_test = { #true *assert };
+    //     });
 
-        while vm.step() {}
+    //     while vm.step() {}
 
-        assert_eq!(vm.stack, vec![Value::Bool(true)])
-    }
+    //     assert_eq!(vm.stack, vec![Value::Bool(true)])
+    // }
 
-    #[test]
-    fn concrete_generator() {
-        let mut vm = Vm::new(lib! {
-            let count = {
-                // (caller next)
-                #1 *yield
-                // (caller next 1 *yield)
-                mv(3)
-                // (next 1 caller)
-                *exec;
-                #2 *yield mv(3) *exec;
-                #3 *yield mv(3) *exec;
-                *ok mv(1) *exec
-            };
+    // #[test]
+    // fn concrete_generator() {
+    //     let mut vm = Vm::new(lib! {
+    //         let count = {
+    //             // (caller next)
+    //             #1 *yield
+    //             // (caller next 1 *yield)
+    //             mv(3)
+    //             // (next 1 caller)
+    //             *exec;
+    //             #2 *yield mv(3) *exec;
+    //             #3 *yield mv(3) *exec;
+    //             *ok mv(1) *exec
+    //         };
 
-            let is_generator_rec = {
-                // (caller generator self)
-                copy(1) is_code if {
-                    // (caller generator self mynext)
-                    mv(2) *exec;
-                    // (caller self (iternext X *yield)|(*ok))
-                    copy(0) *yield eq if {
-                        // (caller self iternext X *yield)
-                        drop(0) drop(0) mv(1)
-                        // (caller iternext self)
-                        copy(0) *exec
-                    } else {
-                        // (caller self *ok)
-                        *ok eq drop(1) mv(1) *exec
-                    }
-                } else {
-                    // (caller generator self)
-                    drop(0) drop(0) #false *exec
-                }
-            };
+    //         let is_generator_rec = {
+    //             // (caller generator self)
+    //             copy(1) is_code if {
+    //                 // (caller generator self mynext)
+    //                 mv(2) *exec;
+    //                 // (caller self (iternext X *yield)|(*ok))
+    //                 copy(0) *yield eq if {
+    //                     // (caller self iternext X *yield)
+    //                     drop(0) drop(0) mv(1)
+    //                     // (caller iternext self)
+    //                     copy(0) *exec
+    //                 } else {
+    //                     // (caller self *ok)
+    //                     *ok eq drop(1) mv(1) *exec
+    //                 }
+    //             } else {
+    //                 // (caller generator self)
+    //                 drop(0) drop(0) #false *exec
+    //             }
+    //         };
 
-            let is_generator = {
-                is_generator_rec is_generator_rec *exec
-            };
+    //         let is_generator = {
+    //             is_generator_rec is_generator_rec *exec
+    //         };
 
-            let true_test = {
-                count is_generator *exec;
-                *assert
-            };
-        });
+    //         let true_test = {
+    //             count is_generator *exec;
+    //             *assert
+    //         };
+    //     });
 
-        while vm.step() {
-            // println!("{:?}", vm.stack)
-        }
+    //     while vm.step() {
+    //         // println!("{:?}", vm.stack)
+    //     }
 
-        assert_eq!(vm.stack, vec![Value::Bool(true)])
-    }
+    //     assert_eq!(vm.stack, vec![Value::Bool(true)])
+    // }
 
     // #[test]
     // fn basic_type() {

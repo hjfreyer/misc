@@ -1,0 +1,34 @@
+
+WHITESPACE = _{ " " | "\n" }
+
+keyword = _{ "if" }
+
+bool = { "true" | "false" }
+
+int = @{ ASCII_DIGIT+ }
+
+identifier = @{ !keyword ~ id_non_digit ~ (id_non_digit | ASCII_DIGIT)* }
+    id_non_digit = _{ ASCII_ALPHA | "_" }
+
+
+func_call = { identifier ~ "(" ~ int ~ ")"}
+
+symbol = { "*" ~ identifier }
+
+value = _{ bool | int }
+
+literal = { ("#" ~ value) }
+
+expr = { literal | func_call | identifier | symbol }
+
+sentence = { expr* }
+
+and_then = { sentence ~ ";" ~ code}
+
+if_statement = { sentence ~ "if" ~ "{" ~ code ~ "}" ~ "else" ~ "{" ~ code ~ "}"}
+
+code = { and_then | if_statement | sentence }
+
+decl = { "let" ~ identifier ~ "="~ "{" ~ code ~ "}" ~ ";"}
+
+file = { SOI ~ decl* ~ EOI }

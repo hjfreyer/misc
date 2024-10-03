@@ -82,7 +82,7 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
             };
             let ns = NamespaceRef { lib, idx: ns_idx };
 
-            stack.push(match ns.get(name).unwrap() {
+            stack.push(match ns.get(&name).unwrap() {
                 crate::flat::EntryView::Code(code) => Value::Pointer(vec![], code.idx),
                 crate::flat::EntryView::Namespace(ns) => Value::Namespace(ns.idx),
             });
@@ -108,7 +108,7 @@ fn control_flow(
     let Some(Value::Symbol(op)) = stack.pop() else {
         panic!("bad value")
     };
-    let (push, next) = match op {
+    let (push, next) = match op.as_str() {
         // "malloc" => {
         //     let Some(Value::Usize(size)) = stack.pop() else {
         //         panic!()

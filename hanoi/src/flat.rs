@@ -26,7 +26,7 @@ pub struct Library {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Namespace(pub Vec<(&'static str, Entry)>);
+pub struct Namespace(pub Vec<(String, Entry)>);
 
 #[derive(Debug, Clone)]
 pub enum Entry {
@@ -100,10 +100,12 @@ impl Library {
             Expression::Usize(v) => Word::Push(Value::Usize(v)),
             Expression::Bool(v) => Word::Push(Value::Bool(v)),
             Expression::Value(v) => Word::Push(v),
-            Expression::FunctionLike("copy", idx) => Word::Copy(idx),
-            Expression::FunctionLike("drop", idx) => Word::Drop(idx),
-            Expression::FunctionLike("mv", idx) => Word::Move(idx),
-            Expression::FunctionLike(name, _) => panic!("unknown reference: {}", name),
+            Expression::FunctionLike(f, idx) => match f.as_str() {
+                "copy" => Word::Copy(idx),
+                "drop" => Word::Drop(idx),
+                "mv" => Word::Move(idx),
+                _ => panic!("unknown reference: {}", f),
+            },
             Expression::Reference(r) => {
                 if let Some(builtin) = Builtin::ALL.iter().find(|builtin| builtin.name() == r) {
                     Word::Builtin(*builtin)
@@ -248,7 +250,7 @@ impl Word {
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum Value {
-    Symbol(&'static str),
+    Symbol(String),
     Usize(usize),
     List(Vec<Value>),
     Pointer(Vec<Value>, CodeIndex),
@@ -314,20 +316,20 @@ pub struct NamespaceRef<'a> {
 }
 
 impl<'a> NamespaceRef<'a> {
-    pub fn entries(self) -> impl Iterator<Item = (&'static str, EntryView<'a>)> + 'a {
+    pub fn entries(self) -> impl Iterator<Item = (&'a str, EntryView<'a>)> + 'a {
         self.lib.namespaces[self.idx]
             .0
             .iter()
             .map(|(name, entry)| match entry {
                 Entry::Code(code_index) => (
-                    *name,
+                    name.as_str(),
                     EntryView::Code(CodeRef {
                         lib: self.lib,
                         idx: *code_index,
                     }),
                 ),
                 Entry::Namespace(namespace_index) => (
-                    *name,
+                    name.as_str(),
                     EntryView::Namespace(NamespaceRef {
                         lib: self.lib,
                         idx: *namespace_index,
@@ -336,7 +338,7 @@ impl<'a> NamespaceRef<'a> {
             })
     }
 
-    pub fn get(self, name: &'static str) -> Option<EntryView<'a>> {
+    pub fn get(self, name: &str) -> Option<EntryView<'a>> {
         self.entries()
             .find_map(|(n, e)| if name == n { Some(e) } else { None })
     }
@@ -428,7 +430,10 @@ impl<'a> CodeRef<'a> {
                         Word::Push(Value::Pointer(vec![], false_case.idx)),
                         Pointer::Code(self.idx),
                     ),
-                    (Word::Push(Value::Symbol("if")), Pointer::Code(self.idx)),
+                    (
+                        Word::Push(Value::Symbol("if".to_owned())),
+                        Pointer::Code(self.idx),
+                    ),
                 ])
                 .collect(),
         }
@@ -447,7 +452,7 @@ impl<'a> CodeRef<'a> {
         if !t
             .judgements
             .iter()
-            .any(|j| *j == Judgement::OutExact(0, Value::Symbol("exec")))
+            .any(|j| *j == Judgement::OutExact(0, Value::Symbol("exec".to_owned())))
         {
             return t;
         }
