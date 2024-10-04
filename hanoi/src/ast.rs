@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use pest::{iterators::Pair, Parser};
+use pest::{iterators::Pair, Parser, Span};
 use pest_derive::Parser;
 
 use crate::flat::Value;
@@ -8,18 +8,20 @@ use crate::flat::Value;
 #[grammar = "hanoi.pest"]
 pub struct HanoiParser;
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Module {
-    pub namespace: Namespace,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Module<'t> {
+    pub namespace: Namespace<'t>,
+    pub span: pest::Span<'t>,
 }
 
-impl Module {
-    pub fn from_str(text: &str) -> anyhow::Result<Self> {
+impl<'t> Module<'t> {
+    pub fn from_str(text: &'t str) -> anyhow::Result<Self> {
         let file = HanoiParser::parse(Rule::file, text)?;
 
         let file = file.exactly_one().unwrap();
         assert_eq!(file.as_rule(), Rule::file);
 
+        let span = file.as_span();
         let mut res = Namespace::default();
         for decl in file.into_inner() {
             match decl.as_rule() {
@@ -37,23 +39,26 @@ impl Module {
                 _ => unreachable!(),
             }
         }
-        Ok(Module { namespace: res })
+        Ok(Module {
+            namespace: res,
+            span,
+        })
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Namespace {
-    pub decls: Vec<Decl>,
+pub struct Namespace<'t> {
+    pub decls: Vec<Decl<'t>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Decl {
+pub struct Decl<'t> {
     pub name: String,
-    pub value: DeclValue,
+    pub value: DeclValue<'t>,
 }
 
-impl Decl {
-    fn from_pair(mut p: Pair<Rule>) -> Decl {
+impl<'t> Decl<'t> {
+    fn from_pair(mut p: Pair<'t, Rule>) -> Decl<'t> {
         assert_eq!(p.as_rule(), Rule::decl);
         let (ident, code) = p.into_inner().collect_tuple().unwrap();
         assert_eq!(ident.as_rule(), Rule::identifier);
@@ -67,13 +72,19 @@ impl Decl {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DeclValue {
-    Namespace(Namespace),
-    Code(Code),
+pub enum DeclValue<'t> {
+    Namespace(Namespace<'t>),
+    Code(Code<'t>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Expression {
+pub struct Expression<'t> {
+    pub span: Span<'t>,
+    pub inner: InnerExpression,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InnerExpression {
     Symbol(String),
     Reference(String),
     FunctionLike(String, usize),
@@ -83,69 +94,74 @@ pub enum Expression {
     This,
 }
 
-impl Expression {
-    pub fn from_pair(p: pest::iterators::Pair<Rule>) -> Expression {
+impl<'t> Expression<'t> {
+    pub fn from_pair(p: pest::iterators::Pair<'t, Rule>) -> Self {
         assert_eq!(p.as_rule(), Rule::expr);
 
-        let inner = p.into_inner().exactly_one().unwrap();
-        match inner.as_rule() {
+        let span = p.as_span();
+        let child = p.into_inner().exactly_one().unwrap();
+        let inner = match child.as_rule() {
             Rule::literal => {
-                let literal = inner.into_inner().exactly_one().unwrap();
+                let literal = child.into_inner().exactly_one().unwrap();
                 match literal.as_rule() {
-                    Rule::int => Expression::Usize(literal.as_str().parse().unwrap()),
+                    Rule::int => InnerExpression::Usize(literal.as_str().parse().unwrap()),
                     _ => unreachable!("{:?}", literal),
                 }
             }
-            Rule::identifier => Expression::Reference(inner.as_str().to_owned()),
+            Rule::identifier => InnerExpression::Reference(child.as_str().to_owned()),
             Rule::symbol => {
-                let ident = inner.into_inner().exactly_one().unwrap();
+                let ident = child.into_inner().exactly_one().unwrap();
                 assert_eq!(ident.as_rule(), Rule::identifier);
-                Expression::Symbol(ident.as_str().to_owned())
+                InnerExpression::Symbol(ident.as_str().to_owned())
             }
             Rule::func_call => {
-                let (fname, farg) = inner.into_inner().collect_tuple().unwrap();
+                let (fname, farg) = child.into_inner().collect_tuple().unwrap();
                 assert_eq!(fname.as_rule(), Rule::identifier);
                 assert_eq!(farg.as_rule(), Rule::int);
-                Expression::FunctionLike(fname.as_str().to_owned(), farg.as_str().parse().unwrap())
+                InnerExpression::FunctionLike(
+                    fname.as_str().to_owned(),
+                    farg.as_str().parse().unwrap(),
+                )
             }
-            Rule::this => Expression::This,
+            Rule::this => InnerExpression::This,
 
-            _ => unreachable!("{:?}", inner),
-        }
+            _ => unreachable!("{:?}", child),
+        };
+        Self { span, inner }
     }
 }
 
-impl From<bool> for Expression {
+impl From<bool> for InnerExpression {
     fn from(value: bool) -> Self {
         Self::Bool(value)
     }
 }
 
-impl From<usize> for Expression {
+impl From<usize> for InnerExpression {
     fn from(value: usize) -> Self {
         Self::Usize(value)
     }
 }
 
-impl From<Value> for Expression {
+impl From<Value> for InnerExpression {
     fn from(value: Value) -> Self {
         Self::Value(value)
     }
 }
 
 #[derive(Clone, PartialEq, Eq)]
-pub enum Code {
-    Sentence(Sentence),
-    AndThen(Sentence, Box<Code>),
+pub enum Code<'t> {
+    Sentence(Sentence<'t>),
+    AndThen(Sentence<'t>, Box<Code<'t>>),
     If {
-        cond: Sentence,
-        true_case: Box<Code>,
-        false_case: Box<Code>,
+        cond: Sentence<'t>,
+        true_case: Box<Code<'t>>,
+        false_case: Box<Code<'t>>,
     },
 }
 
-impl Code {
-    fn from_pair(p: pest::iterators::Pair<Rule>) -> Code {
+impl<'t> Code<'t> {
+    fn from_pair(p: pest::iterators::Pair<'t, Rule>) -> Self {
         assert_eq!(p.as_rule(), Rule::code);
         let inner = p.into_inner().exactly_one().unwrap();
         match inner.as_rule() {
@@ -173,7 +189,7 @@ impl Code {
     }
 }
 
-impl std::fmt::Debug for Code {
+impl<'t> std::fmt::Debug for Code<'t> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Sentence(arg0) => arg0.fmt(f),
@@ -193,27 +209,32 @@ impl std::fmt::Debug for Code {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Sentence(pub Vec<Expression>);
+pub struct Sentence<'t> {
+    pub exprs: Vec<Expression<'t>>,
+    pub span: Span<'t>,
+}
 
-impl Sentence {
-    pub fn push(&mut self, s: impl Into<Sentence>) {
-        for w in s.into().0 {
-            self.0.push(w)
+impl Sentence<'_> {
+    pub fn push(&mut self, s: impl Into<Self>) {
+        for w in s.into().exprs {
+            self.exprs.push(w)
         }
     }
 }
 
-impl Sentence {
-    fn from_pair(p: pest::iterators::Pair<Rule>) -> Sentence {
+impl<'t> Sentence<'t> {
+    fn from_pair(p: pest::iterators::Pair<'t, Rule>) -> Self {
         assert_eq!(p.as_rule(), Rule::sentence);
 
-        Sentence(
-            p.into_inner()
+        Sentence {
+            span: p.as_span(),
+            exprs: p
+                .into_inner()
                 .map(|word| {
                     assert_eq!(word.as_rule(), Rule::expr);
                     Expression::from_pair(word)
                 })
                 .collect(),
-        )
+        }
     }
 }

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use derive_more::derive::{From, Into};
 use typed_index_collections::TiVec;
 
-use crate::ast::{self, Expression};
+use crate::ast::{self, Expression, InnerExpression};
 
 #[derive(From, Into, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct CodeIndex(usize);
@@ -101,7 +101,7 @@ impl Library {
     fn visit_sentence(&mut self, ns_idx: NamespaceIndex, sentence: ast::Sentence) -> SentenceIndex {
         let new_sentence = Sentence(
             sentence
-                .0
+                .exprs
                 .into_iter()
                 .map(|e| self.visit_expr(ns_idx, e))
                 .collect(),
@@ -110,19 +110,19 @@ impl Library {
     }
 
     fn visit_expr(&mut self, ns_idx: NamespaceIndex, e: Expression) -> WordIndex {
-        let w = match e {
-            Expression::This => Word::Push(Value::Namespace(ns_idx)),
-            Expression::Symbol(v) => Word::Push(Value::Symbol(v)),
-            Expression::Usize(v) => Word::Push(Value::Usize(v)),
-            Expression::Bool(v) => Word::Push(Value::Bool(v)),
-            Expression::Value(v) => Word::Push(v),
-            Expression::FunctionLike(f, idx) => match f.as_str() {
+        let w = match e.inner {
+            InnerExpression::This => Word::Push(Value::Namespace(ns_idx)),
+            InnerExpression::Symbol(v) => Word::Push(Value::Symbol(v)),
+            InnerExpression::Usize(v) => Word::Push(Value::Usize(v)),
+            InnerExpression::Bool(v) => Word::Push(Value::Bool(v)),
+            InnerExpression::Value(v) => Word::Push(v),
+            InnerExpression::FunctionLike(f, idx) => match f.as_str() {
                 "copy" => Word::Copy(idx),
                 "drop" => Word::Drop(idx),
                 "mv" => Word::Move(idx),
                 _ => panic!("unknown reference: {}", f),
             },
-            Expression::Reference(r) => {
+            InnerExpression::Reference(r) => {
                 if let Some(builtin) = Builtin::ALL.iter().find(|builtin| builtin.name() == r) {
                     Word::Builtin(*builtin)
                 } else {
