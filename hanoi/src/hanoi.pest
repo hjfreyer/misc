@@ -1,6 +1,10 @@
 WHITESPACE = _{ " " | "\n" }
 
-keyword = _{ "if" }
+COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
+
+this = { "this" }
+
+keyword = _{ "if" | this }
 
 bool = { "true" | "false" }
 
@@ -17,7 +21,7 @@ value = _{ bool | int }
 
 literal = { ("#" ~ value) }
 
-expr = { literal | func_call | identifier | symbol }
+expr = { literal | func_call | identifier | this | symbol }
 
 sentence = { expr* }
 

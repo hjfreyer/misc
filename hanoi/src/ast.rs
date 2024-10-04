@@ -80,6 +80,7 @@ pub enum Expression {
     Value(Value),
     Usize(usize),
     Bool(bool),
+    This,
 }
 
 impl Expression {
@@ -106,6 +107,9 @@ impl Expression {
                 assert_eq!(fname.as_rule(), Rule::identifier);
                 assert_eq!(farg.as_rule(), Rule::int);
                 Expression::FunctionLike(fname.as_str().to_owned(), farg.as_str().parse().unwrap())
+            }
+            Rule::this => {
+                Expression::This
             }
 
             _ => unreachable!("{:?}", inner),

@@ -28,6 +28,16 @@ pub struct Library {
 #[derive(Debug, Clone, Default)]
 pub struct Namespace(pub Vec<(String, Entry)>);
 
+impl Namespace {
+    pub fn get(&self, name:&str) -> Option<&Entry> {
+        self.0.iter().find_map(|(k, v)| if k == name {
+            Some(v)
+        } else {
+            None
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Entry {
     Code(CodeIndex),
@@ -60,7 +70,7 @@ impl Library {
                         .push((decl.name, Entry::Namespace(subns)));
                 }
                 ast::DeclValue::Code(code) => {
-                    let code_idx = self.visit_code(code);
+                    let code_idx = self.visit_code(ns_idx, code);
                     self.namespaces[ns_idx]
                         .0
                         .push((decl.name, Entry::Code(code_idx)));
@@ -70,32 +80,33 @@ impl Library {
         ns_idx
     }
 
-    fn visit_code(&mut self, code: ast::Code) -> CodeIndex {
+    fn visit_code(&mut self, ns_idx: NamespaceIndex, code: ast::Code) -> CodeIndex {
         let new_code = match code {
-            ast::Code::Sentence(sentence) => Code::Sentence(self.visit_sentence(sentence)),
+            ast::Code::Sentence(sentence) => Code::Sentence(self.visit_sentence(ns_idx, sentence)),
             ast::Code::AndThen(sentence, code) => {
-                Code::AndThen(self.visit_sentence(sentence), self.visit_code(*code))
+                Code::AndThen(self.visit_sentence(ns_idx, sentence), self.visit_code(ns_idx, *code))
             }
             ast::Code::If {
                 cond,
                 true_case,
                 false_case,
             } => Code::If {
-                cond: self.visit_sentence(cond),
-                true_case: self.visit_code(*true_case),
-                false_case: self.visit_code(*false_case),
+                cond: self.visit_sentence(ns_idx, cond),
+                true_case: self.visit_code(ns_idx, *true_case),
+                false_case: self.visit_code(ns_idx, *false_case),
             },
         };
         self.codes.push_and_get_key(new_code)
     }
 
-    fn visit_sentence(&mut self, sentence: ast::Sentence) -> SentenceIndex {
-        let new_sentence = Sentence(sentence.0.into_iter().map(|e| self.visit_expr(e)).collect());
+    fn visit_sentence(&mut self, ns_idx: NamespaceIndex, sentence: ast::Sentence) -> SentenceIndex {
+        let new_sentence = Sentence(sentence.0.into_iter().map(|e| self.visit_expr(ns_idx, e)).collect());
         self.sentences.push_and_get_key(new_sentence)
     }
 
-    fn visit_expr(&mut self, e: Expression) -> WordIndex {
+    fn visit_expr(&mut self, ns_idx: NamespaceIndex, e: Expression) -> WordIndex {
         let w = match e {
+            Expression::This => Word::Push(Value::Namespace(ns_idx)),
             Expression::Symbol(v) => Word::Push(Value::Symbol(v)),
             Expression::Usize(v) => Word::Push(Value::Usize(v)),
             Expression::Bool(v) => Word::Push(Value::Bool(v)),
