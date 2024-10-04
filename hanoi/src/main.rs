@@ -17,15 +17,17 @@ use ratatui::{
     layout::{Constraint, Layout},
     style::{Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{List, ListItem, ListState, Paragraph},
+    widgets::{List, ListItem, ListState, Paragraph, ScrollbarState},
     DefaultTerminal, Frame,
 };
 use typed_index_collections::TiVec;
 use vm::{Arena, Vm};
 
 struct Debugger {
+    code: String,
     vm: Vm,
 
+    code_scroll: u16,
     stack_state: ListState,
 }
 
@@ -35,35 +37,36 @@ impl Debugger {
     }
 
     fn code(&self) -> Paragraph {
-        let styles = Styles {
-            codes: self
-                .vm
-                .lib
-                .codes
-                .keys()
-                .map(|idx| match self.vm.prog.last() {
-                    Some((_, Pointer::Code(cidx))) if *cidx == idx => {
-                        Style::new().on_cyan().underlined()
-                    }
-                    _ => Style::new(),
-                })
-                .collect(),
-            words: self
-                .vm
-                .lib
-                .words
-                .keys()
-                .map(|idx| match self.vm.prog.last() {
-                    Some((_, Pointer::Sentence(sidx, offset)))
-                        if self.vm.lib.sentences[*sidx].0[*offset] == idx =>
-                    {
-                        Style::new().on_cyan()
-                    }
-                    _ => Style::new(),
-                })
-                .collect(),
-        };
-        Paragraph::new(print_lib(&self.vm.lib, &styles))
+        // let styles = Styles {
+        //     codes: self
+        //         .vm
+        //         .lib
+        //         .codes
+        //         .keys()
+        //         .map(|idx| match self.vm.prog.last() {
+        //             Some((_, Pointer::Code(cidx))) if *cidx == idx => {
+        //                 Style::new().on_cyan().underlined()
+        //             }
+        //             _ => Style::new(),
+        //         })
+        //         .collect(),
+        //     words: self
+        //         .vm
+        //         .lib
+        //         .words
+        //         .keys()
+        //         .map(|idx| match self.vm.prog.last() {
+        //             Some((_, Pointer::Sentence(sidx, offset)))
+        //                 if self.vm.lib.sentences[*sidx].0[*offset] == idx =>
+        //             {
+        //                 Style::new().on_cyan()
+        //             }
+        //             _ => Style::new(),
+        //         })
+        //         .collect(),
+        // };
+        Paragraph::new(Text::raw(&self.code))
+            .scroll((self.code_scroll, 0))
             .white()
             .on_blue()
     }
@@ -210,129 +213,28 @@ fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Result
                 debugger.step();
             }
             if key.kind == KeyEventKind::Press && key.code == event::KeyCode::Up {
-                debugger.stack_state.select_previous();
+                debugger.code_scroll = debugger.code_scroll.saturating_sub(1);
+                // debugger.stack_state.select_previous();
             }
             if key.kind == KeyEventKind::Press && key.code == event::KeyCode::Down {
-                debugger.stack_state.select_next();
+                debugger.code_scroll = debugger.code_scroll.saturating_add(1);
+                // debugger.stack_state.select_next();
             }
         }
     }
 }
 fn main() -> std::io::Result<()> {
-    let ast = ast::Module::from_str(
-        "
-let map_rec = {
-    // (caller fn iter self next)
-    mv(2) *exec;
-    // (caller fn self (iternext val *yield)|(*ok))
-    copy(0) *ok eq if {
-        // (caller fn self *ok)
-        drop(1) drop(1) mv(1) *exec
-    } else {
-        // (caller fn self iternext val *yield)
-        copy(0) *yield eq if {
-            // (caller fn self iternext val *yield next)
-            mv(2) copy(5)
-            // (caller fn self iternext *yield next val fn)
-            *exec;
-            // (caller fn self iternext *yield mapped *ok)
-            *ok eq if {
-                // (caller fn self iternext *yield mapped)
-                mv(4) mv(3) mv(4)
-                // (caller *yield mapped fn iternext self)
-                copy(0) curry curry curry
-                // (caller *yield mapped mapnext)
-                mv(1) mv(2) mv(3) *exec
-            } else {
-                *panic
-            }
-        } else {
-            *panic
-        }
-    }
-};
+    let (_, path): (String, String) = std::env::args().collect_tuple().expect("specify one path");
 
-let map = {
-    // (caller fn iter)
-    *map_rec this get *map_rec this get *exec
-};
+    let code = std::fs::read_to_string(&path)?;
 
-let count_rec = {
-    // (caller self i)
-    #1 add
-    // (caller self (i+1))
-    copy(0)
-    // (caller self (i+1) (i+1))
-    mv(2)
-    // (caller (i+1) (i+1) self)
-    mv(2)
-    // (caller (i+1) self (i+1))
-    copy(1)
-    // (caller (i+1) self (i+1) self)
-    curry
-    // (caller (i+1) self [(i+1)](self))
-    curry
-    // (caller (i+1) [self, (i+1)](self))
-    mv(1)
-    // (caller nextiter (i+1))
-    *yield
-    // (caller nextiter (i+1) *yield)
-    mv(3) *exec
-};
-
-let count = {
-    *count_rec this get #0 *count_rec this get *exec
-};
-
-let double = {
-    // (caller n)
-    copy(0) add *ok mv(2) *exec
-};
-
-let main_rec = {
-    // (iter self next)
-    mv(2) *exec;
-    // (self iternext val *yield)
-    drop(0) drop(0) mv(1) copy(0)
-    // (iternext self self)
-    *exec
-};
-
-let main = {
-    #3 *double this get *exec;
-    // double count map curry curry main_rec main_rec *exec
-};
-    ",
-    )
-    .unwrap();
+    let ast = ast::Module::from_str(&code).unwrap();
 
     let lib = Library::from_ast(ast.namespace);
 
-    println!("{:?}", lib);
-
     let EntryView::Code(main) = lib.root_namespace().get("main").unwrap() else {
         panic!()
     };
-    let prog = main.words().into_iter().rev().collect();
-
-    let mut vm = Vm {
-        lib,
-        prog,
-        stack: vec![],
-        arena: Arena { buffers: vec![] },
-    };
-    println!("{:?}", vm.stack);
-    loop {
-        vm.step();
-        println!("{:?}", vm.stack);
-    }
-
-    return Ok(());
-
-    let EntryView::Code(main) = lib.root_namespace().get("main").unwrap() else {
-        panic!()
-    };
-
     let prog = main.words().into_iter().rev().collect();
 
     let mut vm = Vm {
@@ -343,8 +245,9 @@ let main = {
     };
 
     let debugger = Debugger {
+        code_scroll: 0,
+        code,
         vm,
-
         stack_state: ListState::default(),
     };
 

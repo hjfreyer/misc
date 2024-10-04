@@ -108,9 +108,7 @@ impl Expression {
                 assert_eq!(farg.as_rule(), Rule::int);
                 Expression::FunctionLike(fname.as_str().to_owned(), farg.as_str().parse().unwrap())
             }
-            Rule::this => {
-                Expression::This
-            }
+            Rule::this => Expression::This,
 
             _ => unreachable!("{:?}", inner),
         }

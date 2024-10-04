@@ -29,12 +29,10 @@ pub struct Library {
 pub struct Namespace(pub Vec<(String, Entry)>);
 
 impl Namespace {
-    pub fn get(&self, name:&str) -> Option<&Entry> {
-        self.0.iter().find_map(|(k, v)| if k == name {
-            Some(v)
-        } else {
-            None
-        })
+    pub fn get(&self, name: &str) -> Option<&Entry> {
+        self.0
+            .iter()
+            .find_map(|(k, v)| if k == name { Some(v) } else { None })
     }
 }
 
@@ -83,9 +81,10 @@ impl Library {
     fn visit_code(&mut self, ns_idx: NamespaceIndex, code: ast::Code) -> CodeIndex {
         let new_code = match code {
             ast::Code::Sentence(sentence) => Code::Sentence(self.visit_sentence(ns_idx, sentence)),
-            ast::Code::AndThen(sentence, code) => {
-                Code::AndThen(self.visit_sentence(ns_idx, sentence), self.visit_code(ns_idx, *code))
-            }
+            ast::Code::AndThen(sentence, code) => Code::AndThen(
+                self.visit_sentence(ns_idx, sentence),
+                self.visit_code(ns_idx, *code),
+            ),
             ast::Code::If {
                 cond,
                 true_case,
@@ -100,7 +99,13 @@ impl Library {
     }
 
     fn visit_sentence(&mut self, ns_idx: NamespaceIndex, sentence: ast::Sentence) -> SentenceIndex {
-        let new_sentence = Sentence(sentence.0.into_iter().map(|e| self.visit_expr(ns_idx, e)).collect());
+        let new_sentence = Sentence(
+            sentence
+                .0
+                .into_iter()
+                .map(|e| self.visit_expr(ns_idx, e))
+                .collect(),
+        );
         self.sentences.push_and_get_key(new_sentence)
     }
 
