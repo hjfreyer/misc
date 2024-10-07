@@ -7,7 +7,7 @@ mod vm;
 
 use flat::{
     Builtin, Code, CodeIndex, CodeRef, CodeView, Entry, EntryView, InnerWord, Library, Namespace,
-    NamespaceIndex, SentenceIndex, SentenceRef, Value, Word, WordIndex,
+    NamespaceIndex, SentenceIndex, SentenceRef, Value, ValueView, Word, WordIndex,
 };
 use itertools::Itertools;
 use pest::Parser;
@@ -75,9 +75,11 @@ impl<'t> Debugger<'t> {
             .iter()
             .map(|v| {
                 ListItem::new({
-                    let mut s = "".to_string();
-                    v.format(&mut s, &self.vm.lib).unwrap();
-                    s
+                    ValueView {
+                        lib: &self.vm.lib,
+                        value: v,
+                    }
+                    .to_string()
                 })
             })
             .collect();
@@ -96,102 +98,6 @@ impl<'t> Debugger<'t> {
 pub struct Styles {
     pub codes: TiVec<CodeIndex, Style>,
     pub words: TiVec<WordIndex, Style>,
-}
-
-pub fn print_lib(lib: &Library, styles: &Styles) -> Text<'static> {
-    lib.namespaces
-        .first()
-        .unwrap()
-        .0
-        .iter()
-        .flat_map(|(name, entry)| match entry {
-            flat::Entry::Code(code_index) => {
-                std::iter::once(Line::raw(format!("let {} = {{", name)))
-                    .chain(
-                        print_code(
-                            CodeRef {
-                                lib,
-                                idx: *code_index,
-                            },
-                            2,
-                            styles,
-                            Style::new(),
-                        )
-                        .into_iter(),
-                    )
-                    .chain(std::iter::once("}".into()))
-            }
-            flat::Entry::Namespace(namespace_index) => todo!(),
-        })
-        .collect()
-}
-
-fn print_code(
-    code: CodeRef,
-    indent: usize,
-    styles: &Styles,
-    mut line_style: Style,
-) -> Text<'static> {
-    line_style = line_style.patch(styles.codes[code.idx]);
-
-    match code.view() {
-        CodeView::Sentence(styled_sentence) => {
-            print_sentence(styled_sentence, indent, styles, line_style).into()
-        }
-        CodeView::AndThen(styled_sentence, styled_code) => {
-            let mut line = print_sentence(styled_sentence, indent, styles, line_style);
-            line.push_span(Span::raw(";"));
-            std::iter::once(line)
-                .chain(print_code(styled_code, indent, styles, line_style).into_iter())
-                .collect()
-        }
-        CodeView::If {
-            cond,
-            true_case,
-            false_case,
-        } => {
-            let mut line = print_sentence(cond, indent, styles, line_style);
-            line.push_span(" if {");
-            std::iter::once(line)
-                .chain(print_code(true_case, indent + 2, styles, line_style).into_iter())
-                .chain(std::iter::once(
-                    Line::raw(format!("{}}} else {{", " ".repeat(indent))).style(line_style),
-                ))
-                .chain(print_code(false_case, indent + 2, styles, line_style).into_iter())
-                .chain(std::iter::once(
-                    Line::raw(format!("{}}}", " ".repeat(indent))).style(line_style),
-                ))
-                .collect()
-        }
-    }
-}
-
-fn print_sentence(
-    sentence: SentenceRef,
-    indent: usize,
-    styles: &Styles,
-    line_style: Style,
-) -> Line<'static> {
-    Line::from_iter(
-        std::iter::once(Span::raw(" ".repeat(indent))).chain(Itertools::intersperse(
-            sentence
-                .word_idxes()
-                .map(|w| print_word(sentence.lib, w, styles)),
-            Span::raw(" "),
-        )),
-    )
-    .style(line_style)
-}
-
-fn print_word(lib: &Library, word_idx: WordIndex, styles: &Styles) -> Span<'static> {
-    let res: Span<'static> = match &lib.words[word_idx].inner {
-        InnerWord::Builtin(b) => b.name().into(),
-        InnerWord::Push(value) => format!("{:?}", value).into(),
-        InnerWord::Copy(i) => format!("copy({})", i).into(),
-        InnerWord::Drop(i) => format!("drop({})", i).into(),
-        InnerWord::Move(i) => format!("mv({})", i).into(),
-    };
-    res.style(styles.words[word_idx])
 }
 
 fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Result<()> {

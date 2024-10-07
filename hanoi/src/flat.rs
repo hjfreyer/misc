@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use derive_more::derive::{From, Into};
+use itertools::Itertools;
 use pest::Span;
 use typed_index_collections::TiVec;
 
@@ -24,6 +25,8 @@ pub struct Library<'t> {
     pub codes: TiVec<CodeIndex, Code>,
     pub sentences: TiVec<SentenceIndex, Sentence>,
     pub words: TiVec<WordIndex, Word<'t>>,
+
+    pub code_to_name: TiVec<CodeIndex, String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -69,7 +72,7 @@ impl<'t> Library<'t> {
                         .push((decl.name, Entry::Namespace(subns)));
                 }
                 ast::DeclValue::Code(code) => {
-                    let code_idx = self.visit_code(ns_idx, code);
+                    let code_idx = self.visit_code(&decl.name, ns_idx, code);
                     self.namespaces[ns_idx]
                         .0
                         .push((decl.name, Entry::Code(code_idx)));
@@ -79,28 +82,32 @@ impl<'t> Library<'t> {
         ns_idx
     }
 
-    fn visit_code(&mut self, ns_idx: NamespaceIndex, code: ast::Code<'t>) -> CodeIndex {
+    fn visit_code(&mut self, name: &str, ns_idx: NamespaceIndex, code: ast::Code<'t>) -> CodeIndex {
         let new_code = match code {
-            ast::Code::Sentence(sentence) => Code::Sentence(self.visit_sentence(ns_idx, sentence)),
+            ast::Code::Sentence(sentence) => {
+                Code::Sentence(self.visit_sentence(name, ns_idx, sentence))
+            }
             ast::Code::AndThen(sentence, code) => Code::AndThen(
-                self.visit_sentence(ns_idx, sentence),
-                self.visit_code(ns_idx, *code),
+                self.visit_sentence(name, ns_idx, sentence),
+                self.visit_code(name, ns_idx, *code),
             ),
             ast::Code::If {
                 cond,
                 true_case,
                 false_case,
             } => Code::If {
-                cond: self.visit_sentence(ns_idx, cond),
-                true_case: self.visit_code(ns_idx, *true_case),
-                false_case: self.visit_code(ns_idx, *false_case),
+                cond: self.visit_sentence(name, ns_idx, cond),
+                true_case: self.visit_code(name, ns_idx, *true_case),
+                false_case: self.visit_code(name, ns_idx, *false_case),
             },
         };
+        self.code_to_name.push(name.to_owned());
         self.codes.push_and_get_key(new_code)
     }
 
     fn visit_sentence(
         &mut self,
+        name: &str,
         ns_idx: NamespaceIndex,
         sentence: ast::Sentence<'t>,
     ) -> SentenceIndex {
@@ -289,6 +296,39 @@ pub enum Value {
     Namespace(NamespaceIndex),
 }
 
+pub struct ValueView<'a, 't> {
+    pub lib: &'a Library<'t>,
+    pub value: &'a Value,
+}
+
+impl<'a, 't> std::fmt::Display for ValueView<'a, 't> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.value {
+            Value::Symbol(arg0) => write!(f, "*{}", arg0),
+            Value::Usize(arg0) => write!(f, "{}", arg0),
+            Value::List(arg0) => todo!(),
+            Value::Handle(arg0) => todo!(),
+            Value::Namespace(arg0) => write!(f, "ns({})", arg0.0),
+            Value::Bool(arg0) => write!(f, "{}", arg0),
+            Value::Pointer(values, ptr) => {
+                write!(
+                    f,
+                    "[{}]{}#{}",
+                    values
+                        .iter()
+                        .map(|v| ValueView {
+                            lib: self.lib,
+                            value: v
+                        })
+                        .join(", "),
+                    self.lib.code_to_name[*ptr],
+                    ptr.0
+                )
+            }
+        }
+    }
+}
+
 impl Value {
     pub fn into_code<'a, 't>(self, lib: &'a Library<'t>) -> Option<(Vec<Value>, CodeRef<'a, 't>)> {
         match self {
@@ -299,22 +339,6 @@ impl Value {
             | Value::Namespace(_)
             | Value::Bool(_)
             | Value::Handle(_) => None,
-        }
-    }
-
-    pub fn format(&self, mut f: impl std::fmt::Write, lib: &Library) -> std::fmt::Result {
-        match self {
-            Self::Symbol(arg0) => write!(f, "*{}", arg0),
-            Self::Usize(arg0) => write!(f, "{}", arg0),
-            Self::List(arg0) => todo!(),
-            Self::Handle(arg0) => todo!(),
-            Self::Namespace(arg0) => write!(f, "ns({})", arg0.0),
-            Self::Bool(arg0) => write!(f, "{}", arg0),
-            Self::Pointer(values, ptr) => {
-                // let decl = &lib.decls[lib.code_to_decl[*ptr]];
-                // write!(f, "{:?}{}#{}", values, decl.name, ptr.0)
-                write!(f, "ptr({})", ptr.0)
-            }
         }
     }
 }
