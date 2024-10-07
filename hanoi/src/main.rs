@@ -6,8 +6,8 @@ mod flat;
 mod vm;
 
 use flat::{
-    Builtin, Code, CodeIndex, CodeRef, CodeView, Entry, EntryView, Library, Namespace,
-    NamespaceIndex, Pointer, SentenceIndex, SentenceRef, Value, Word, WordIndex,
+    Builtin, Code, CodeIndex, CodeRef, CodeView, Entry, EntryView, InnerWord, Library, Namespace,
+    NamespaceIndex, SentenceIndex, SentenceRef, Value, Word, WordIndex,
 };
 use itertools::Itertools;
 use pest::Parser;
@@ -17,55 +17,52 @@ use ratatui::{
     layout::{Constraint, Layout},
     style::{Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{List, ListItem, ListState, Paragraph, ScrollbarState},
+    widgets::{self, List, ListItem, ListState, Paragraph, ScrollbarState},
     DefaultTerminal, Frame,
 };
 use typed_index_collections::TiVec;
 use vm::{Arena, Vm};
 
-struct Debugger {
-    code: String,
-    vm: Vm,
+struct Debugger<'t> {
+    code: &'t str,
+    vm: Vm<'t>,
 
     code_scroll: u16,
     stack_state: ListState,
 }
 
-impl Debugger {
+impl<'t> Debugger<'t> {
     fn step(&mut self) -> bool {
         self.vm.step()
     }
 
     fn code(&self) -> Paragraph {
-        // let styles = Styles {
-        //     codes: self
-        //         .vm
-        //         .lib
-        //         .codes
-        //         .keys()
-        //         .map(|idx| match self.vm.prog.last() {
-        //             Some((_, Pointer::Code(cidx))) if *cidx == idx => {
-        //                 Style::new().on_cyan().underlined()
-        //             }
-        //             _ => Style::new(),
-        //         })
-        //         .collect(),
-        //     words: self
-        //         .vm
-        //         .lib
-        //         .words
-        //         .keys()
-        //         .map(|idx| match self.vm.prog.last() {
-        //             Some((_, Pointer::Sentence(sidx, offset)))
-        //                 if self.vm.lib.sentences[*sidx].0[*offset] == idx =>
-        //             {
-        //                 Style::new().on_cyan()
-        //             }
-        //             _ => Style::new(),
-        //         })
-        //         .collect(),
-        // };
-        Paragraph::new(Text::raw(&self.code))
+        let text = if let Some(Word {
+            span: Some(span), ..
+        }) = self.vm.prog.last()
+        {
+            let mut res = Text::raw("");
+            let mut iter = self.code[..span.start()].lines();
+            res.push_span(iter.next().unwrap().on_green());
+            while let Some(next) = iter.next() {
+                res.push_line(next);
+            }
+            let mut iter = span.as_str().lines();
+            res.push_span(iter.next().unwrap().on_green());
+            while let Some(next) = iter.next() {
+                res.push_line(next.on_green());
+            }
+            let mut iter = self.code[span.end()..].lines();
+            res.push_span(iter.next().unwrap());
+            while let Some(next) = iter.next() {
+                res.push_line(next);
+            }
+
+            res
+        } else {
+            Text::raw(self.code)
+        };
+        Paragraph::new(text)
             .scroll((self.code_scroll, 0))
             .white()
             .on_blue()
@@ -187,12 +184,12 @@ fn print_sentence(
 }
 
 fn print_word(lib: &Library, word_idx: WordIndex, styles: &Styles) -> Span<'static> {
-    let res: Span<'static> = match &lib.words[word_idx] {
-        Word::Builtin(b) => b.name().into(),
-        Word::Push(value) => format!("{:?}", value).into(),
-        Word::Copy(i) => format!("copy({})", i).into(),
-        Word::Drop(i) => format!("drop({})", i).into(),
-        Word::Move(i) => format!("mv({})", i).into(),
+    let res: Span<'static> = match &lib.words[word_idx].inner {
+        InnerWord::Builtin(b) => b.name().into(),
+        InnerWord::Push(value) => format!("{:?}", value).into(),
+        InnerWord::Copy(i) => format!("copy({})", i).into(),
+        InnerWord::Drop(i) => format!("drop({})", i).into(),
+        InnerWord::Move(i) => format!("mv({})", i).into(),
     };
     res.style(styles.words[word_idx])
 }
@@ -246,7 +243,7 @@ fn main() -> std::io::Result<()> {
 
     let debugger = Debugger {
         code_scroll: 0,
-        code,
+        code: &code,
         vm,
         stack_state: ListState::default(),
     };

@@ -77,6 +77,10 @@ let main_rec = {
 };
 
 let main = {
-    #3 *double this get *exec;
-    // double count map curry curry main_rec main_rec *exec
+    *double this get 
+        *count this get 
+        *map this get 
+        curry curry 
+        *main_rec this get 
+        *main_rec this get *exec
 };

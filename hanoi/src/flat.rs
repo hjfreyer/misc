@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use derive_more::derive::{From, Into};
+use pest::Span;
 use typed_index_collections::TiVec;
 
 use crate::ast::{self, Expression, InnerExpression};
@@ -18,11 +19,11 @@ pub struct WordIndex(usize);
 pub struct NamespaceIndex(usize);
 
 #[derive(Debug, Clone, Default)]
-pub struct Library {
+pub struct Library<'t> {
     pub namespaces: TiVec<NamespaceIndex, Namespace>,
     pub codes: TiVec<CodeIndex, Code>,
     pub sentences: TiVec<SentenceIndex, Sentence>,
-    pub words: TiVec<WordIndex, Word>,
+    pub words: TiVec<WordIndex, Word<'t>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -42,21 +43,21 @@ pub enum Entry {
     Namespace(NamespaceIndex),
 }
 
-impl Library {
-    pub fn from_ast(lib: ast::Namespace) -> Self {
+impl<'t> Library<'t> {
+    pub fn from_ast(lib: ast::Namespace<'t>) -> Self {
         let mut res = Self::default();
         res.visit_ns(lib);
         res
     }
 
-    pub fn root_namespace(&self) -> NamespaceRef<'_> {
+    pub fn root_namespace(&self) -> NamespaceRef<'_, 't> {
         NamespaceRef {
             lib: self,
             idx: self.namespaces.first_key().unwrap(),
         }
     }
 
-    fn visit_ns(&mut self, ns: ast::Namespace) -> NamespaceIndex {
+    fn visit_ns(&mut self, ns: ast::Namespace<'t>) -> NamespaceIndex {
         let ns_idx = self.namespaces.push_and_get_key(Namespace::default());
 
         for decl in ns.decls {
@@ -78,7 +79,7 @@ impl Library {
         ns_idx
     }
 
-    fn visit_code(&mut self, ns_idx: NamespaceIndex, code: ast::Code) -> CodeIndex {
+    fn visit_code(&mut self, ns_idx: NamespaceIndex, code: ast::Code<'t>) -> CodeIndex {
         let new_code = match code {
             ast::Code::Sentence(sentence) => Code::Sentence(self.visit_sentence(ns_idx, sentence)),
             ast::Code::AndThen(sentence, code) => Code::AndThen(
@@ -98,7 +99,11 @@ impl Library {
         self.codes.push_and_get_key(new_code)
     }
 
-    fn visit_sentence(&mut self, ns_idx: NamespaceIndex, sentence: ast::Sentence) -> SentenceIndex {
+    fn visit_sentence(
+        &mut self,
+        ns_idx: NamespaceIndex,
+        sentence: ast::Sentence<'t>,
+    ) -> SentenceIndex {
         let new_sentence = Sentence(
             sentence
                 .exprs
@@ -109,22 +114,22 @@ impl Library {
         self.sentences.push_and_get_key(new_sentence)
     }
 
-    fn visit_expr(&mut self, ns_idx: NamespaceIndex, e: Expression) -> WordIndex {
+    fn visit_expr(&mut self, ns_idx: NamespaceIndex, e: Expression<'t>) -> WordIndex {
         let w = match e.inner {
-            InnerExpression::This => Word::Push(Value::Namespace(ns_idx)),
-            InnerExpression::Symbol(v) => Word::Push(Value::Symbol(v)),
-            InnerExpression::Usize(v) => Word::Push(Value::Usize(v)),
-            InnerExpression::Bool(v) => Word::Push(Value::Bool(v)),
-            InnerExpression::Value(v) => Word::Push(v),
+            InnerExpression::This => InnerWord::Push(Value::Namespace(ns_idx)),
+            InnerExpression::Symbol(v) => InnerWord::Push(Value::Symbol(v)),
+            InnerExpression::Usize(v) => InnerWord::Push(Value::Usize(v)),
+            InnerExpression::Bool(v) => InnerWord::Push(Value::Bool(v)),
+            InnerExpression::Value(v) => InnerWord::Push(v),
             InnerExpression::FunctionLike(f, idx) => match f.as_str() {
-                "copy" => Word::Copy(idx),
-                "drop" => Word::Drop(idx),
-                "mv" => Word::Move(idx),
+                "copy" => InnerWord::Copy(idx),
+                "drop" => InnerWord::Drop(idx),
+                "mv" => InnerWord::Move(idx),
                 _ => panic!("unknown reference: {}", f),
             },
             InnerExpression::Reference(r) => {
                 if let Some(builtin) = Builtin::ALL.iter().find(|builtin| builtin.name() == r) {
-                    Word::Builtin(*builtin)
+                    InnerWord::Builtin(*builtin)
                 } else {
                     // if let Some((decl_idx, decl)) = self
                     //     .decls
@@ -138,7 +143,10 @@ impl Library {
                 }
             }
         };
-        self.words.push_and_get_key(w)
+        self.words.push_and_get_key(Word {
+            inner: w,
+            span: Some(e.span),
+        })
     }
 }
 
@@ -222,7 +230,13 @@ impl Builtin {
 }
 
 #[derive(Debug, Clone)]
-pub enum Word {
+pub struct Word<'t> {
+    pub inner: InnerWord,
+    pub span: Option<Span<'t>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum InnerWord {
     Push(Value),
     Copy(usize),
     Drop(usize),
@@ -230,15 +244,15 @@ pub enum Word {
     Builtin(Builtin),
 }
 
-impl Word {
+impl InnerWord {
     fn r#type(self) -> Type {
         match self {
-            Word::Push(value) => Type {
+            InnerWord::Push(value) => Type {
                 arity_in: 0,
                 arity_out: 1,
                 judgements: vec![Judgement::OutExact(0, value.clone())],
             },
-            Word::Copy(idx) => Type {
+            InnerWord::Copy(idx) => Type {
                 arity_in: idx + 1,
                 arity_out: idx + 2,
                 judgements: (0..(idx + 1))
@@ -246,12 +260,12 @@ impl Word {
                     .chain(std::iter::once(Judgement::Eq(idx, 0)))
                     .collect(),
             },
-            Word::Drop(idx) => Type {
+            InnerWord::Drop(idx) => Type {
                 arity_in: idx + 1,
                 arity_out: idx,
                 judgements: (0..idx).map(|i| Judgement::Eq(i, i)).collect(),
             },
-            Word::Move(idx) => Type {
+            InnerWord::Move(idx) => Type {
                 arity_in: idx + 1,
                 arity_out: idx + 1,
                 judgements: (0..idx)
@@ -259,7 +273,7 @@ impl Word {
                     .chain(std::iter::once(Judgement::Eq(idx, 0)))
                     .collect(),
             },
-            Word::Builtin(builtin) => builtin.r#type(),
+            InnerWord::Builtin(builtin) => builtin.r#type(),
         }
     }
 }
@@ -276,7 +290,7 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn into_code(self, lib: &Library) -> Option<(Vec<Value>, CodeRef)> {
+    pub fn into_code<'a, 't>(self, lib: &'a Library<'t>) -> Option<(Vec<Value>, CodeRef<'a, 't>)> {
         match self {
             Self::Pointer(values, ptr) => Some((values, CodeRef { lib, idx: ptr })),
             Value::Symbol(_)
@@ -319,20 +333,14 @@ impl std::fmt::Debug for Value {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Pointer {
-    Code(CodeIndex),
-    Sentence(SentenceIndex, usize),
-}
-
 #[derive(Clone, Copy)]
-pub struct NamespaceRef<'a> {
-    pub lib: &'a Library,
+pub struct NamespaceRef<'a, 't> {
+    pub lib: &'a Library<'t>,
     pub idx: NamespaceIndex,
 }
 
-impl<'a> NamespaceRef<'a> {
-    pub fn entries(self) -> impl Iterator<Item = (&'a str, EntryView<'a>)> + 'a {
+impl<'a, 't> NamespaceRef<'a, 't> {
+    pub fn entries(self) -> impl Iterator<Item = (&'a str, EntryView<'a, 't>)> + 'a {
         self.lib.namespaces[self.idx]
             .0
             .iter()
@@ -354,37 +362,37 @@ impl<'a> NamespaceRef<'a> {
             })
     }
 
-    pub fn get(self, name: &str) -> Option<EntryView<'a>> {
+    pub fn get(self, name: &str) -> Option<EntryView<'a, 't>> {
         self.entries()
             .find_map(|(n, e)| if name == n { Some(e) } else { None })
     }
 }
 
 #[derive(Clone, Copy)]
-pub enum EntryView<'a> {
-    Code(CodeRef<'a>),
-    Namespace(NamespaceRef<'a>),
+pub enum EntryView<'a, 't> {
+    Code(CodeRef<'a, 't>),
+    Namespace(NamespaceRef<'a, 't>),
 }
 
 #[derive(Clone, Copy)]
-pub struct CodeRef<'a> {
-    pub lib: &'a Library,
+pub struct CodeRef<'a, 't> {
+    pub lib: &'a Library<'t>,
     pub idx: CodeIndex,
 }
 
 #[derive(Clone, Copy)]
-pub enum CodeView<'a> {
-    Sentence(SentenceRef<'a>),
-    AndThen(SentenceRef<'a>, CodeRef<'a>),
+pub enum CodeView<'a, 't> {
+    Sentence(SentenceRef<'a, 't>),
+    AndThen(SentenceRef<'a, 't>, CodeRef<'a, 't>),
     If {
-        cond: SentenceRef<'a>,
-        true_case: CodeRef<'a>,
-        false_case: CodeRef<'a>,
+        cond: SentenceRef<'a, 't>,
+        true_case: CodeRef<'a, 't>,
+        false_case: CodeRef<'a, 't>,
     },
 }
 
-impl<'a> CodeRef<'a> {
-    pub fn view(self) -> CodeView<'a> {
+impl<'a, 't> CodeRef<'a, 't> {
+    pub fn view(self) -> CodeView<'a, 't> {
         let code = &self.lib.codes[self.idx];
         match code {
             Code::Sentence(sentence_index) => CodeView::Sentence(SentenceRef {
@@ -422,13 +430,15 @@ impl<'a> CodeRef<'a> {
         }
     }
 
-    pub fn words(self) -> Vec<(Word, Pointer)> {
+    pub fn words(self) -> Vec<Word<'t>> {
         match self.view() {
             CodeView::Sentence(sentence) => sentence.words().collect(),
-            CodeView::AndThen(sentence, and_then) => std::iter::once((
-                Word::Push(Value::Pointer(vec![], and_then.idx)),
-                Pointer::Code(self.idx),
-            ))
+            CodeView::AndThen(sentence, and_then) => std::iter::once(
+                (Word {
+                    inner: InnerWord::Push(Value::Pointer(vec![], and_then.idx)),
+                    span: None,
+                }),
+            )
             .chain(sentence.words().into_iter())
             .collect(),
             CodeView::If {
@@ -438,18 +448,18 @@ impl<'a> CodeRef<'a> {
             } => cond
                 .words()
                 .chain([
-                    (
-                        Word::Push(Value::Pointer(vec![], true_case.idx)),
-                        Pointer::Code(self.idx),
-                    ),
-                    (
-                        Word::Push(Value::Pointer(vec![], false_case.idx)),
-                        Pointer::Code(self.idx),
-                    ),
-                    (
-                        Word::Push(Value::Symbol("if".to_owned())),
-                        Pointer::Code(self.idx),
-                    ),
+                    Word {
+                        inner: InnerWord::Push(Value::Pointer(vec![], true_case.idx)),
+                        span: None,
+                    },
+                    Word {
+                        inner: InnerWord::Push(Value::Pointer(vec![], false_case.idx)),
+                        span: None,
+                    },
+                    Word {
+                        inner: InnerWord::Push(Value::Symbol("if".to_owned())),
+                        span: None,
+                    },
                 ])
                 .collect(),
         }
@@ -458,7 +468,7 @@ impl<'a> CodeRef<'a> {
     pub fn r#type(self) -> Type {
         self.words()
             .into_iter()
-            .map(|(w, p)| w.r#type())
+            .map(|w| w.inner.r#type())
             .fold(Type::NULL, Type::compose)
     }
 
@@ -482,8 +492,8 @@ impl<'a> CodeRef<'a> {
 
         let next_type = pointer_type(self.lib, &next_push, next_code);
 
-        t.compose(Word::Drop(0).r#type())
-            .compose(Word::Drop(0).r#type())
+        t.compose(InnerWord::Drop(0).r#type())
+            .compose(InnerWord::Drop(0).r#type())
             .compose(next_type)
     }
 }
@@ -491,33 +501,28 @@ impl<'a> CodeRef<'a> {
 fn pointer_type(lib: &Library, push: &[Value], code: CodeIndex) -> Type {
     let push_type = push
         .iter()
-        .map(|v| Word::Push(v.clone()).r#type())
+        .map(|v| InnerWord::Push(v.clone()).r#type())
         .fold(Type::NULL, Type::compose);
     push_type.compose(CodeRef { lib, idx: code }.r#type())
 }
 
 #[derive(Clone, Copy)]
-pub struct SentenceRef<'a> {
-    pub lib: &'a Library,
+pub struct SentenceRef<'a, 't> {
+    pub lib: &'a Library<'t>,
     pub idx: SentenceIndex,
 }
 
-impl<'a> SentenceRef<'a> {
+impl<'a, 't> SentenceRef<'a, 't> {
     pub fn word_idxes(self) -> impl Iterator<Item = WordIndex> + 'a {
         self.lib.sentences[self.idx].0.iter().copied()
     }
 
-    pub fn words(self) -> impl Iterator<Item = (Word, Pointer)> + 'a {
+    pub fn words(self) -> impl Iterator<Item = Word<'t>> + 'a {
         self.lib.sentences[self.idx]
             .0
             .iter()
             .enumerate()
-            .map(move |(offset, widx)| {
-                (
-                    self.lib.words[*widx].clone(),
-                    Pointer::Sentence(self.idx, offset),
-                )
-            })
+            .map(move |(offset, widx)| (self.lib.words[*widx].clone()))
     }
 }
 

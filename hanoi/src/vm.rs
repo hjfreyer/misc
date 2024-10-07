@@ -2,12 +2,12 @@ use typed_index_collections::TiSliceIndex;
 
 use crate::{
     ast,
-    flat::{Builtin, EntryView, Library, NamespaceRef, Pointer, Value, Word},
+    flat::{Builtin, EntryView, InnerWord, Library, NamespaceRef, Value, Word},
 };
 
-fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
+fn eval(lib: &Library, stack: &mut Vec<Value>, w: &InnerWord) {
     match w {
-        Word::Builtin(Builtin::Add) => {
+        InnerWord::Builtin(Builtin::Add) => {
             let Some(Value::Usize(a)) = stack.pop() else {
                 panic!("bad value")
             };
@@ -16,18 +16,18 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
             };
             stack.push(Value::Usize(a + b));
         }
-        Word::Copy(idx) => {
+        InnerWord::Copy(idx) => {
             stack.push(stack[stack.len() - idx - 1].clone());
         }
-        Word::Move(idx) => {
+        InnerWord::Move(idx) => {
             let val = stack.remove(stack.len() - idx - 1);
             stack.push(val);
         }
-        Word::Drop(idx) => {
+        InnerWord::Drop(idx) => {
             stack.remove(stack.len() - idx - 1);
         }
-        Word::Push(v) => stack.push(v.clone()),
-        Word::Builtin(Builtin::Eq) => {
+        InnerWord::Push(v) => stack.push(v.clone()),
+        InnerWord::Builtin(Builtin::Eq) => {
             let Some(a) = stack.pop() else {
                 panic!("bad value")
             };
@@ -36,20 +36,20 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
             };
             stack.push(Value::Bool(a == b));
         }
-        Word::Builtin(Builtin::Curry) => {
+        InnerWord::Builtin(Builtin::Curry) => {
             let (mut closure, code) = stack.pop().unwrap().into_code(lib).unwrap();
             let Some(val) = stack.pop() else { panic!() };
             closure.insert(0, val);
             stack.push(Value::Pointer(closure, code.idx));
         }
-        Word::Builtin(Builtin::IsCode) => {
+        InnerWord::Builtin(Builtin::IsCode) => {
             let value = Value::Bool(match stack.pop().unwrap() {
                 Value::Pointer(_, _) => true,
                 _ => false,
             });
             stack.push(value)
         }
-        Word::Builtin(Builtin::And) => {
+        InnerWord::Builtin(Builtin::And) => {
             let Some(Value::Bool(a)) = stack.pop() else {
                 panic!("bad value")
             };
@@ -58,7 +58,7 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
             };
             stack.push(Value::Bool(a && b));
         }
-        Word::Builtin(Builtin::Or) => {
+        InnerWord::Builtin(Builtin::Or) => {
             let Some(Value::Bool(a)) = stack.pop() else {
                 panic!("bad value")
             };
@@ -67,13 +67,13 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &Word) {
             };
             stack.push(Value::Bool(a || b));
         }
-        Word::Builtin(Builtin::Not) => {
+        InnerWord::Builtin(Builtin::Not) => {
             let Some(Value::Bool(a)) = stack.pop() else {
                 panic!("bad value")
             };
             stack.push(Value::Bool(!a));
         }
-        Word::Builtin(Builtin::Get) => {
+        InnerWord::Builtin(Builtin::Get) => {
             let Some(Value::Namespace(ns_idx)) = stack.pop() else {
                 panic!("bad value")
             };
@@ -100,11 +100,11 @@ pub struct Buffer {
     mem: Vec<usize>,
 }
 
-fn control_flow(
-    lib: &Library,
+fn control_flow<'t>(
+    lib: &Library<'t>,
     stack: &mut Vec<Value>,
     arena: &mut Arena,
-) -> Option<Vec<(Word, Pointer)>> {
+) -> Option<Vec<Word<'t>>> {
     let Some(Value::Symbol(op)) = stack.pop() else {
         panic!("bad value")
     };
@@ -175,15 +175,15 @@ fn control_flow(
     Some(next.words())
 }
 
-pub struct Vm {
-    pub lib: Library,
-    pub prog: Vec<(Word, Pointer)>,
+pub struct Vm<'t> {
+    pub lib: Library<'t>,
+    pub prog: Vec<Word<'t>>,
     pub stack: Vec<Value>,
     pub arena: Arena,
 }
 
-impl Vm {
-    pub fn new(ast: ast::Namespace) -> Self {
+impl<'t> Vm<'t> {
+    pub fn new(ast: ast::Namespace<'t>) -> Self {
         let lib = Library::from_ast(ast);
 
         let EntryView::Code(main) = lib.root_namespace().get("main").unwrap() else {
@@ -200,9 +200,9 @@ impl Vm {
     }
 
     pub fn step(&mut self) -> bool {
-        if let Some((word, ptr)) = self.prog.pop() {
+        if let Some(word) = self.prog.pop() {
             // eprintln!("word: {:?}", word);
-            eval(&self.lib, &mut self.stack, &word);
+            eval(&self.lib, &mut self.stack, &word.inner);
             true
         } else {
             if let Some(new_prog) = control_flow(&self.lib, &mut self.stack, &mut self.arena) {
