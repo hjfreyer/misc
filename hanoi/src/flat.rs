@@ -127,7 +127,6 @@ impl<'t> Library<'t> {
             InnerExpression::Symbol(v) => InnerWord::Push(Value::Symbol(v)),
             InnerExpression::Usize(v) => InnerWord::Push(Value::Usize(v)),
             InnerExpression::Bool(v) => InnerWord::Push(Value::Bool(v)),
-            InnerExpression::Value(v) => InnerWord::Push(v),
             InnerExpression::FunctionLike(f, idx) => match f.as_str() {
                 "copy" => InnerWord::Copy(idx),
                 "drop" => InnerWord::Drop(idx),
@@ -135,18 +134,13 @@ impl<'t> Library<'t> {
                 _ => panic!("unknown reference: {}", f),
             },
             InnerExpression::Reference(r) => {
-                if let Some(builtin) = Builtin::ALL.iter().find(|builtin| builtin.name() == r) {
+                panic!("unknown reference: {}", r)
+            }
+            InnerExpression::Builtin(name) => {
+                if let Some(builtin) = Builtin::ALL.iter().find(|builtin| builtin.name() == name) {
                     InnerWord::Builtin(*builtin)
                 } else {
-                    // if let Some((decl_idx, decl)) = self
-                    //     .decls
-                    //     .iter_enumerated()
-                    //     .find(|(_, decl)| decl.name == r)
-                    // {
-                    //     Word::Push(Value::Pointer(vec![], decl.code))
-                    // } else {
-                    panic!("unknown reference: {}", r)
-                    // }
+                    panic!("unknown builtin: {}", name)
                 }
             }
         };

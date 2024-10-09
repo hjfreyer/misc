@@ -107,9 +107,9 @@ pub struct Expression<'t> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InnerExpression {
     Symbol(String),
+    Builtin(String),
     Reference(String),
     FunctionLike(String, usize),
-    Value(Value),
     Usize(usize),
     Bool(bool),
     This,
@@ -135,6 +135,11 @@ impl<'t> Expression<'t> {
                 assert_eq!(ident.as_rule(), Rule::identifier);
                 InnerExpression::Symbol(ident.as_str().to_owned())
             }
+            Rule::builtin => {
+                let ident = child.into_inner().exactly_one().unwrap();
+                assert_eq!(ident.as_rule(), Rule::identifier);
+                InnerExpression::Builtin(ident.as_str().to_owned())
+            }
             Rule::func_call => {
                 let (fname, farg) = child.into_inner().collect_tuple().unwrap();
                 assert_eq!(fname.as_rule(), Rule::identifier);
@@ -145,7 +150,6 @@ impl<'t> Expression<'t> {
                 )
             }
             Rule::this => InnerExpression::This,
-
             _ => unreachable!("{:?}", child),
         };
         Self { span, inner }
@@ -161,12 +165,6 @@ impl From<bool> for InnerExpression {
 impl From<usize> for InnerExpression {
     fn from(value: usize) -> Self {
         Self::Usize(value)
-    }
-}
-
-impl From<Value> for InnerExpression {
-    fn from(value: Value) -> Self {
-        Self::Value(value)
     }
 }
 
