@@ -31,6 +31,12 @@ if_statement = { sentence ~ "if" ~ "{" ~ code ~ "}" ~ "else" ~ "{" ~ code ~ "}" 
 
 code = { and_then | if_statement | sentence }
 
-decl = { "let" ~ identifier ~ "=" ~ "{" ~ code ~ "}" ~ ";" }
+code_decl = { "let" ~ identifier ~ "=" ~ "{" ~ code ~ "}" ~ ";" }
 
-file = { SOI ~ decl* ~ EOI }
+ns_decl = { "mod" ~ identifier ~ "{" ~ namespace ~ "}" }
+
+decl = _{ code_decl | ns_decl }
+
+namespace = { decl* }
+
+file = { SOI ~ namespace ~ EOI }

@@ -1,39 +1,41 @@
 
-let map_rec = {
-    // (caller fn iter self next)
-    mv(2) *exec;
-    // (caller fn self (iternext val *yield)|(*ok))
-    copy(0) *ok eq if {
-        // (caller fn self *ok)
-        drop(1) drop(1) mv(1) *exec
-    } else {
-        // (caller fn self iternext val *yield)
-        copy(0) *yield eq if {
-            // (caller fn self iternext val *yield next)
-            mv(2) copy(5)
-            // (caller fn self iternext *yield next val fn)
-            *exec;
-            // (caller fn self iternext *yield mapped *ok)
-            *ok eq if {
-                // (caller fn self iternext *yield mapped)
-                mv(4) mv(3) mv(4)
-                // (caller *yield mapped fn iternext self)
-                copy(0) curry curry curry
-                // (caller *yield mapped mapnext)
-                mv(1) mv(2) mv(3) *exec
+mod iter {
+    let map_rec = {
+        // (caller fn iter self next)
+        mv(2) *exec;
+        // (caller fn self (iternext val *yield)|(*ok))
+        copy(0) *ok eq if {
+            // (caller fn self *ok)
+            drop(1) drop(1) mv(1) *exec
+        } else {
+            // (caller fn self iternext val *yield)
+            copy(0) *yield eq if {
+                // (caller fn self iternext val *yield next)
+                mv(2) copy(5)
+                // (caller fn self iternext *yield next val fn)
+                *exec;
+                // (caller fn self iternext *yield mapped *ok)
+                *ok eq if {
+                    // (caller fn self iternext *yield mapped)
+                    mv(4) mv(3) mv(4)
+                    // (caller *yield mapped fn iternext self)
+                    copy(0) curry curry curry
+                    // (caller *yield mapped mapnext)
+                    mv(1) mv(2) mv(3) *exec
+                } else {
+                    *panic
+                }
             } else {
                 *panic
             }
-        } else {
-            *panic
         }
-    }
-};
+    };
 
-let map = {
-    // (caller fn iter)
-    *map_rec this get *map_rec this get *exec
-};
+    let map = {
+        // (caller fn iter)
+        *map_rec this get *map_rec this get *exec
+    };
+}
 
 let count_rec = {
     // (caller self i)
@@ -79,7 +81,7 @@ let main_rec = {
 let main = {
     *double this get 
         *count this get 
-        *map this get 
+        *map *iter this get get 
         curry curry 
         *main_rec this get 
         *main_rec this get *exec

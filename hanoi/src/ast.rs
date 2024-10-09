@@ -11,7 +11,6 @@ pub struct HanoiParser;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Module<'t> {
     pub namespace: Namespace<'t>,
-    pub span: pest::Span<'t>,
 }
 
 impl<'t> Module<'t> {
@@ -21,11 +20,31 @@ impl<'t> Module<'t> {
         let file = file.exactly_one().unwrap();
         assert_eq!(file.as_rule(), Rule::file);
 
-        let span = file.as_span();
-        let mut res = Namespace::default();
-        for decl in file.into_inner() {
+        let (ns, eoi) = file.into_inner() .collect_tuple().unwrap();
+        assert_eq!(eoi.as_rule(), Rule::EOI);
+
+        Ok(Module {
+            namespace: Namespace::from_pair(ns),
+        })
+    }
+
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Namespace<'t> {
+    pub decls: Vec<Decl<'t>>,
+    pub span: Span<'t>,
+}
+
+impl <'t> Namespace<'t> {
+
+    fn from_pair(p: pest::iterators::Pair<'t, Rule>) -> Self {
+        assert_eq!(p.as_rule(), Rule::namespace);
+
+        let mut res = Self{decls: vec![], span: p.as_span()};
+        for decl in p.into_inner() {
             match decl.as_rule() {
-                Rule::decl => {
+                Rule::code_decl => {
                     let (ident, code) = decl.into_inner().collect_tuple().unwrap();
                     assert_eq!(ident.as_rule(), Rule::identifier);
                     let code = Code::from_pair(code);
@@ -35,20 +54,20 @@ impl<'t> Module<'t> {
                         value: DeclValue::Code(code),
                     })
                 }
-                Rule::EOI => break,
+                Rule::ns_decl => {
+                    let (ident, ns) = decl.into_inner().collect_tuple().unwrap();
+                    assert_eq!(ident.as_rule(), Rule::identifier);
+                    let ns = Namespace::from_pair(ns);
+
+                    res.decls.push(Decl {
+                        name: ident.as_str().to_owned(),
+                        value: DeclValue::Namespace(ns),
+                    })
+                }
                 _ => unreachable!(),
             }
-        }
-        Ok(Module {
-            namespace: res,
-            span,
-        })
+        }res
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Namespace<'t> {
-    pub decls: Vec<Decl<'t>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
