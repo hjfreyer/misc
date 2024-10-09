@@ -20,14 +20,13 @@ impl<'t> Module<'t> {
         let file = file.exactly_one().unwrap();
         assert_eq!(file.as_rule(), Rule::file);
 
-        let (ns, eoi) = file.into_inner() .collect_tuple().unwrap();
+        let (ns, eoi) = file.into_inner().collect_tuple().unwrap();
         assert_eq!(eoi.as_rule(), Rule::EOI);
 
         Ok(Module {
             namespace: Namespace::from_pair(ns),
         })
     }
-
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,12 +35,14 @@ pub struct Namespace<'t> {
     pub span: Span<'t>,
 }
 
-impl <'t> Namespace<'t> {
-
+impl<'t> Namespace<'t> {
     fn from_pair(p: pest::iterators::Pair<'t, Rule>) -> Self {
         assert_eq!(p.as_rule(), Rule::namespace);
 
-        let mut res = Self{decls: vec![], span: p.as_span()};
+        let mut res = Self {
+            decls: vec![],
+            span: p.as_span(),
+        };
         for decl in p.into_inner() {
             match decl.as_rule() {
                 Rule::code_decl => {
@@ -66,7 +67,8 @@ impl <'t> Namespace<'t> {
                 }
                 _ => unreachable!(),
             }
-        }res
+        }
+        res
     }
 }
 

@@ -2,6 +2,8 @@ WHITESPACE = _{ " " | "\n" }
 
 COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
 
+builtin = { "#" ~ identifier }
+
 this = { "this" }
 
 keyword = _{ "if" | this }
@@ -15,13 +17,11 @@ id_non_digit = _{ ASCII_ALPHA | "_" }
 
 func_call = { identifier ~ "(" ~ int ~ ")" }
 
-symbol = { "*" ~ identifier }
+symbol = { "@" ~ identifier }
 
-value = _{ bool | int }
+literal = {  bool | int }
 
-literal = { ("#" ~ value) }
-
-expr = { literal | func_call | identifier | this | symbol }
+expr = { literal | func_call | identifier | builtin | this | symbol }
 
 sentence = { expr* }
 

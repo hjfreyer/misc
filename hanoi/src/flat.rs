@@ -304,7 +304,7 @@ pub struct ValueView<'a, 't> {
 impl<'a, 't> std::fmt::Display for ValueView<'a, 't> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.value {
-            Value::Symbol(arg0) => write!(f, "*{}", arg0),
+            Value::Symbol(arg0) => write!(f, "@{}", arg0),
             Value::Usize(arg0) => write!(f, "{}", arg0),
             Value::List(arg0) => todo!(),
             Value::Handle(arg0) => todo!(),
@@ -346,7 +346,7 @@ impl Value {
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Symbol(arg0) => write!(f, "*{}", arg0),
+            Self::Symbol(arg0) => write!(f, "@{}", arg0),
             Self::Usize(arg0) => write!(f, "{}", arg0),
             Self::List(arg0) => f.debug_tuple("List").field(arg0).finish(),
             Self::Handle(arg0) => f.debug_tuple("Handle").field(arg0).finish(),
