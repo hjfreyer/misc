@@ -5,13 +5,14 @@ mod flat;
 
 mod vm;
 
+use std::path::PathBuf;
+
+use clap::{Parser, Subcommand};
 use flat::{
     Builtin, Code, CodeIndex, CodeRef, CodeView, Entry, EntryView, InnerWord, Library, Namespace,
     NamespaceIndex, SentenceIndex, SentenceRef, Value, ValueView, Word, WordIndex,
 };
 use itertools::Itertools;
-use pest::Parser;
-use pest_derive::Parser;
 use ratatui::{
     crossterm::event::{self, KeyEventKind},
     layout::{Constraint, Layout},
@@ -126,10 +127,22 @@ fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Result
         }
     }
 }
-fn main() -> std::io::Result<()> {
-    let (_, path): (String, String) = std::env::args().collect_tuple().expect("specify one path");
 
-    let code = std::fs::read_to_string(&path)?;
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    Debug { file: PathBuf },
+    Test { file: PathBuf },
+}
+
+fn debug(file: PathBuf) -> anyhow::Result<()> {
+    let code = std::fs::read_to_string(&file)?;
 
     let ast = ast::Module::from_str(&code).unwrap();
 
@@ -158,7 +171,164 @@ fn main() -> std::io::Result<()> {
     terminal.clear()?;
     let app_result = run(terminal, debugger);
     ratatui::restore();
-    app_result
+    app_result?;
+    Ok(())
+}
+
+struct IterReader<'a, 't> {
+    vm: &'a mut Vm<'t>,
+}
+
+impl<'a, 't> Iterator for IterReader<'a, 't> {
+    type Item = Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.vm.step() {}
+
+        let Value::Symbol(result) = self.vm.stack.pop().unwrap() else {
+            panic!();
+        };
+
+        match result.as_str() {
+            "yield" => {
+                let resume = self.vm.stack.pop().unwrap();
+
+                let item = self.vm.stack.pop().unwrap();
+
+                self.vm.prog = vec![
+                    Word {
+                        inner: InnerWord::Push(Value::Pointer(vec![], CodeIndex::TRAP)),
+                        span: None,
+                    },
+                    Word {
+                        inner: InnerWord::Push(resume),
+                        span: None,
+                    },
+                    Word {
+                        inner: InnerWord::Push(Value::Symbol("exec".to_owned())),
+                        span: None,
+                    },
+                ];
+
+                self.vm.prog.reverse();
+
+                Some(item)
+            }
+            "eos" => None,
+            _ => panic!(),
+        }
+    }
+}
+
+fn test(file: PathBuf) -> anyhow::Result<()> {
+    let code = std::fs::read_to_string(&file)?;
+
+    let ast = ast::Module::from_str(&code).unwrap();
+
+    let lib = Library::from_ast(ast.namespace);
+
+    let mut prog = vec![
+        Word {
+            inner: InnerWord::Push(Value::Pointer(vec![], CodeIndex::TRAP)),
+            span: None,
+        },
+        Word {
+            inner: InnerWord::Push(Value::Symbol("enumerate".to_string())),
+            span: None,
+        },
+        Word {
+            inner: InnerWord::Push(Value::Symbol("tests".to_string())),
+            span: None,
+        },
+        Word {
+            inner: InnerWord::Push(Value::Namespace(lib.root_namespace().idx)),
+            span: None,
+        },
+        Word {
+            inner: InnerWord::Builtin(Builtin::Get),
+            span: None,
+        },
+        Word {
+            inner: InnerWord::Builtin(Builtin::Get),
+            span: None,
+        },
+        Word {
+            inner: InnerWord::Push(Value::Symbol("exec".to_string())),
+            span: None,
+        },
+    ];
+    prog.reverse();
+
+    let mut vm = Vm {
+        lib,
+        prog,
+        stack: vec![],
+        arena: Arena { buffers: vec![] },
+    };
+
+    for tc in (IterReader { vm: &mut vm }).collect_vec() {
+        let Value::Symbol(tc_name) = tc else { panic!() };
+
+        println!("Running test: {}", tc_name);
+
+        vm.prog = vec![
+            Word {
+                inner: InnerWord::Push(Value::Pointer(vec![], CodeIndex::TRAP)),
+                span: None,
+            },
+            Word {
+                inner: InnerWord::Push(Value::Symbol(tc_name)),
+                span: None,
+            },
+            Word {
+                inner: InnerWord::Push(Value::Symbol("run".to_string())),
+                span: None,
+            },
+            Word {
+                inner: InnerWord::Push(Value::Symbol("tests".to_string())),
+                span: None,
+            },
+            Word {
+                inner: InnerWord::Push(Value::Namespace(vm.lib.root_namespace().idx)),
+                span: None,
+            },
+            Word {
+                inner: InnerWord::Builtin(Builtin::Get),
+                span: None,
+            },
+            Word {
+                inner: InnerWord::Builtin(Builtin::Get),
+                span: None,
+            },
+            Word {
+                inner: InnerWord::Push(Value::Symbol("exec".to_string())),
+                span: None,
+            },
+        ];
+        vm.prog.reverse();
+        while vm.step() {}
+
+        let Value::Symbol(result) = vm.stack.pop().unwrap() else {
+            panic!()
+        };
+
+        match result.as_str() {
+            "pass" => println!("PASS!"),
+            "fail" => println!("FAIL!"),
+            _ => panic!(),
+        }
+    }
+
+    Ok(())
+}
+
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+
+    match args.command {
+        Commands::Debug { file } => debug(file),
+        Commands::Test { file } => test(file),
+    }
 }
 
 #[cfg(test)]

@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.89"
+clap = { version = "4.5.20", features = ["derive"] }
 derive_more = {version="1.0.0", features= ["from", "into"]}
 itertools = "0.13.0"
 pest = "2.7.13"

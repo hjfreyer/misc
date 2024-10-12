@@ -2,7 +2,10 @@ use typed_index_collections::TiSliceIndex;
 
 use crate::{
     ast,
-    flat::{Builtin, EntryView, InnerWord, Library, NamespaceRef, Value, Word},
+    flat::{
+        Builtin, CodeIndex, CodeRef, CodeView, EntryView, InnerWord, Library, NamespaceRef, Value,
+        Word,
+    },
 };
 
 fn eval(lib: &Library, stack: &mut Vec<Value>, w: &InnerWord) {
@@ -40,7 +43,7 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &InnerWord) {
             let (mut closure, code) = stack.pop().unwrap().into_code(lib).unwrap();
             let Some(val) = stack.pop() else { panic!() };
             closure.insert(0, val);
-            stack.push(Value::Pointer(closure, code.idx));
+            stack.push(Value::Pointer(closure, code));
         }
         InnerWord::Builtin(Builtin::IsCode) => {
             let value = Value::Bool(match stack.pop().unwrap() {
@@ -165,14 +168,22 @@ fn control_flow<'t>(
                 Some(false_case)
             }
         }
-        "exec" => Some(stack.pop().unwrap().into_code(lib).unwrap()),
+        "exec" => {
+            println!("{:?}", stack);
+            let (push, code) = stack.pop().unwrap().into_code(lib).unwrap();
+            if code == CodeIndex::TRAP {
+                None
+            } else {
+                Some((push, code))
+            }
+        }
         "assert" => None,
         // "halt" => None,
         unk => panic!("unknown symbol: {}", unk),
     }?;
 
     stack.extend(push);
-    Some(next.words())
+    Some(CodeRef { lib, idx: next }.words())
 }
 
 pub struct Vm<'t> {

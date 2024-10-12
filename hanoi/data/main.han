@@ -1,4 +1,28 @@
 
+mod tests {
+    let enumerate = {
+        // (caller next)
+        @assert_true #mv(1) @yield #mv(3) @exec; 
+        @another_one #mv(1) @yield #mv(3) @exec; 
+        @eos #mv(1) @exec
+    };
+
+    mod cases {
+        let assert_true = {
+            @pass #mv(1) @exec
+        };
+
+        let another_one = {
+            @fail #mv(1) @exec
+        };
+    }
+
+    let run = {
+        // (caller case)
+        @cases this #get #get @exec 
+    };
+}
+
 mod iter {
     let map_rec = {
         // (caller fn iter self next)

@@ -126,6 +126,7 @@ impl<'t> Expression<'t> {
                 let literal = child.into_inner().exactly_one().unwrap();
                 match literal.as_rule() {
                     Rule::int => InnerExpression::Usize(literal.as_str().parse().unwrap()),
+                    Rule::bool => InnerExpression::Bool(literal.as_str().parse().unwrap()),
                     _ => unreachable!("{:?}", literal),
                 }
             }

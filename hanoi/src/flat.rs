@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, usize};
 
 use derive_more::derive::{From, Into};
 use itertools::Itertools;
@@ -9,6 +9,10 @@ use crate::ast::{self, Expression, InnerExpression};
 
 #[derive(From, Into, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct CodeIndex(usize);
+
+impl CodeIndex {
+    pub const TRAP: Self = CodeIndex(usize::MAX);
+}
 
 #[derive(From, Into, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SentenceIndex(usize);
@@ -315,7 +319,11 @@ impl<'a, 't> std::fmt::Display for ValueView<'a, 't> {
                             value: v
                         })
                         .join(", "),
-                    self.lib.code_to_name[*ptr],
+                    if *ptr == CodeIndex::TRAP {
+                        "TRAP"
+                    } else {
+                        self.lib.code_to_name[*ptr].as_str()
+                    },
                     ptr.0
                 )
             }
@@ -324,9 +332,9 @@ impl<'a, 't> std::fmt::Display for ValueView<'a, 't> {
 }
 
 impl Value {
-    pub fn into_code<'a, 't>(self, lib: &'a Library<'t>) -> Option<(Vec<Value>, CodeRef<'a, 't>)> {
+    pub fn into_code<'a, 't>(self, lib: &'a Library<'t>) -> Option<(Vec<Value>, CodeIndex)> {
         match self {
-            Self::Pointer(values, ptr) => Some((values, CodeRef { lib, idx: ptr })),
+            Self::Pointer(values, ptr) => Some((values, ptr)),
             Value::Symbol(_)
             | Value::Usize(_)
             | Value::List(_)
