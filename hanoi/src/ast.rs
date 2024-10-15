@@ -112,6 +112,7 @@ pub enum InnerExpression {
     FunctionLike(String, usize),
     Usize(usize),
     Bool(bool),
+    Char(char),
     This,
 }
 
@@ -127,14 +128,35 @@ impl<'t> Expression<'t> {
                 match literal.as_rule() {
                     Rule::int => InnerExpression::Usize(literal.as_str().parse().unwrap()),
                     Rule::bool => InnerExpression::Bool(literal.as_str().parse().unwrap()),
+                    Rule::char_lit => {
+                        let chr = literal.into_inner().exactly_one().unwrap();
+                        assert_eq!(Rule::lit_char, chr.as_rule());
+
+                        let c = match chr.as_str() {
+                            "\\n" => '\n',
+                            c => c.chars().exactly_one().unwrap(),
+                        };
+
+                        InnerExpression::Char(c)
+                    }
                     _ => unreachable!("{:?}", literal),
                 }
             }
             Rule::identifier => InnerExpression::Reference(child.as_str().to_owned()),
             Rule::symbol => {
                 let ident = child.into_inner().exactly_one().unwrap();
-                assert_eq!(ident.as_rule(), Rule::identifier);
-                InnerExpression::Symbol(ident.as_str().to_owned())
+                match ident.as_rule() {
+                    Rule::identifier => InnerExpression::Symbol(ident.as_str().to_owned()),
+                    Rule::string => {
+                        let inner = ident.into_inner().exactly_one().unwrap();
+                        assert_eq!(inner.as_rule(), Rule::str_inner);
+
+                        InnerExpression::Symbol(
+                            inner.as_str().replace("\\n", "\n").replace("\\\"", "\""),
+                        )
+                    }
+                    _ => unreachable!(),
+                }
             }
             Rule::builtin => {
                 let ident = child.into_inner().exactly_one().unwrap();

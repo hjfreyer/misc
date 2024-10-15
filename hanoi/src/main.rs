@@ -34,7 +34,17 @@ struct Debugger<'t> {
 
 impl<'t> Debugger<'t> {
     fn step(&mut self) -> bool {
-        self.vm.step()
+        if !self.vm.step() {
+            return false;
+        }
+
+        if let Some(word) = self.vm.prog.last() {
+            if let Some(span) = &word.span {
+                let (line, _) = span.start_pos().line_col();
+                self.code_scroll = (line as u16).saturating_sub(10);
+            }
+        }
+        true
     }
 
     fn code(&self) -> Paragraph {

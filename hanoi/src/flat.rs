@@ -131,8 +131,9 @@ impl<'t> Library<'t> {
             InnerExpression::Symbol(v) => InnerWord::Push(Value::Symbol(v)),
             InnerExpression::Usize(v) => InnerWord::Push(Value::Usize(v)),
             InnerExpression::Bool(v) => InnerWord::Push(Value::Bool(v)),
+            InnerExpression::Char(v) => InnerWord::Push(Value::Char(v)),
             InnerExpression::FunctionLike(f, idx) => match f.as_str() {
-                "copy" => InnerWord::Copy(idx),
+                "cp" => InnerWord::Copy(idx),
                 "drop" => InnerWord::Drop(idx),
                 "mv" => InnerWord::Move(idx),
                 _ => panic!("unknown reference: {}", f),
@@ -203,36 +204,39 @@ macro_rules! builtins {
 builtins! {
     (Add, add),
     (Eq, eq),
+    (AssertEq, assert_eq),
     (Curry, curry),
     (Or, or),
     (And, and),
     (Not, not),
     (IsCode, is_code),
     (Get, get),
+    (SymbolCharAt, symbol_char_at),
+    (SymbolLen, symbol_len),
 }
 
-impl Builtin {
-    pub fn r#type(self) -> Type {
-        match self {
-            Builtin::Add => Type {
-                arity_in: 2,
-                arity_out: 1,
-                judgements: vec![],
-            },
-            Builtin::Eq => todo!(),
-            Builtin::Curry => Type {
-                arity_in: 2,
-                arity_out: 1,
-                judgements: vec![],
-            },
-            Builtin::Or => todo!(),
-            Builtin::And => todo!(),
-            Builtin::Not => todo!(),
-            Builtin::IsCode => todo!(),
-            Builtin::Get => todo!(),
-        }
-    }
-}
+// impl Builtin {
+//     pub fn r#type(self) -> Type {
+//         match self {
+//             Builtin::Add => Type {
+//                 arity_in: 2,
+//                 arity_out: 1,
+//                 judgements: vec![],
+//             },
+//             Builtin::Eq => todo!(),
+//             Builtin::Curry => Type {
+//                 arity_in: 2,
+//                 arity_out: 1,
+//                 judgements: vec![],
+//             },
+//             Builtin::Or => todo!(),
+//             Builtin::And => todo!(),
+//             Builtin::Not => todo!(),
+//             Builtin::IsCode => todo!(),
+//             Builtin::Get => todo!(),
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone)]
 pub struct Word<'t> {
@@ -250,40 +254,40 @@ pub enum InnerWord {
 }
 
 impl InnerWord {
-    fn r#type(self) -> Type {
-        match self {
-            InnerWord::Push(value) => Type {
-                arity_in: 0,
-                arity_out: 1,
-                judgements: vec![Judgement::OutExact(0, value.clone())],
-            },
-            InnerWord::Copy(idx) => Type {
-                arity_in: idx + 1,
-                arity_out: idx + 2,
-                judgements: (0..(idx + 1))
-                    .map(|i| Judgement::Eq(i, i + 1))
-                    .chain(std::iter::once(Judgement::Eq(idx, 0)))
-                    .collect(),
-            },
-            InnerWord::Drop(idx) => Type {
-                arity_in: idx + 1,
-                arity_out: idx,
-                judgements: (0..idx).map(|i| Judgement::Eq(i, i)).collect(),
-            },
-            InnerWord::Move(idx) => Type {
-                arity_in: idx + 1,
-                arity_out: idx + 1,
-                judgements: (0..idx)
-                    .map(|i| Judgement::Eq(i, i + 1))
-                    .chain(std::iter::once(Judgement::Eq(idx, 0)))
-                    .collect(),
-            },
-            InnerWord::Builtin(builtin) => builtin.r#type(),
-        }
-    }
+    // fn r#type(self) -> Type {
+    //     match self {
+    //         InnerWord::Push(value) => Type {
+    //             arity_in: 0,
+    //             arity_out: 1,
+    //             judgements: vec![Judgement::OutExact(0, value.clone())],
+    //         },
+    //         InnerWord::Copy(idx) => Type {
+    //             arity_in: idx + 1,
+    //             arity_out: idx + 2,
+    //             judgements: (0..(idx + 1))
+    //                 .map(|i| Judgement::Eq(i, i + 1))
+    //                 .chain(std::iter::once(Judgement::Eq(idx, 0)))
+    //                 .collect(),
+    //         },
+    //         InnerWord::Drop(idx) => Type {
+    //             arity_in: idx + 1,
+    //             arity_out: idx,
+    //             judgements: (0..idx).map(|i| Judgement::Eq(i, i)).collect(),
+    //         },
+    //         InnerWord::Move(idx) => Type {
+    //             arity_in: idx + 1,
+    //             arity_out: idx + 1,
+    //             judgements: (0..idx)
+    //                 .map(|i| Judgement::Eq(i, i + 1))
+    //                 .chain(std::iter::once(Judgement::Eq(idx, 0)))
+    //                 .collect(),
+    //         },
+    //         InnerWord::Builtin(builtin) => builtin.r#type(),
+    //     }
+    // }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Value {
     Symbol(String),
     Usize(usize),
@@ -291,6 +295,7 @@ pub enum Value {
     Pointer(Vec<Value>, CodeIndex),
     Handle(usize),
     Bool(bool),
+    Char(char),
     Namespace(NamespaceIndex),
 }
 
@@ -308,6 +313,7 @@ impl<'a, 't> std::fmt::Display for ValueView<'a, 't> {
             Value::Handle(arg0) => todo!(),
             Value::Namespace(arg0) => write!(f, "ns({})", arg0.0),
             Value::Bool(arg0) => write!(f, "{}", arg0),
+            Value::Char(arg0) => write!(f, "'{}'", arg0),
             Value::Pointer(values, ptr) => {
                 write!(
                     f,
@@ -340,24 +346,43 @@ impl Value {
             | Value::List(_)
             | Value::Namespace(_)
             | Value::Bool(_)
+            | Value::Char(_)
             | Value::Handle(_) => None,
         }
     }
 }
 
-impl std::fmt::Debug for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Symbol(arg0) => write!(f, "@{}", arg0),
-            Self::Usize(arg0) => write!(f, "{}", arg0),
-            Self::List(arg0) => f.debug_tuple("List").field(arg0).finish(),
-            Self::Handle(arg0) => f.debug_tuple("Handle").field(arg0).finish(),
-            Self::Bool(arg0) => write!(f, "{}", arg0),
-            Self::Pointer(values, ptr) => write!(f, "[{:?}]({:?})", values, ptr),
-            Self::Namespace(arg0) => f.debug_tuple("Namespace").field(arg0).finish(),
-        }
+impl From<usize> for Value {
+    fn from(value: usize) -> Self {
+        Self::Usize(value)
     }
 }
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
+impl From<char> for Value {
+    fn from(value: char) -> Self {
+        Self::Char(value)
+    }
+}
+
+// impl std::fmt::Debug for Value {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             Self::Symbol(arg0) => write!(f, "@{}", arg0),
+//             Self::Usize(arg0) => write!(f, "{}", arg0),
+//             Self::List(arg0) => f.debug_tuple("List").field(arg0).finish(),
+//             Self::Handle(arg0) => f.debug_tuple("Handle").field(arg0).finish(),
+//             Self::Bool(arg0) => write!(f, "{}", arg0),
+//             Self::Pointer(values, ptr) => write!(f, "[{:?}]({:?})", values, ptr),
+//             Self::Namespace(arg0) => f.debug_tuple("Namespace").field(arg0).finish(),
+//         }
+//     }
+// }
 
 #[derive(Clone, Copy)]
 pub struct NamespaceRef<'a, 't> {
@@ -491,46 +516,46 @@ impl<'a, 't> CodeRef<'a, 't> {
         }
     }
 
-    pub fn r#type(self) -> Type {
-        self.words()
-            .into_iter()
-            .map(|w| w.inner.r#type())
-            .fold(Type::NULL, Type::compose)
-    }
+    // pub fn r#type(self) -> Type {
+    //     self.words()
+    //         .into_iter()
+    //         .map(|w| w.inner.r#type())
+    //         .fold(Type::NULL, Type::compose)
+    // }
 
-    pub fn eventual_type(self) -> Type {
-        let mut t = self.r#type();
+    // pub fn eventual_type(self) -> Type {
+    //     let mut t = self.r#type();
 
-        if !t
-            .judgements
-            .iter()
-            .any(|j| *j == Judgement::OutExact(0, Value::Symbol("exec".to_owned())))
-        {
-            return t;
-        }
+    //     if !t
+    //         .judgements
+    //         .iter()
+    //         .any(|j| *j == Judgement::OutExact(0, Value::Symbol("exec".to_owned())))
+    //     {
+    //         return t;
+    //     }
 
-        let Some((next_push, next_code)) = t.judgements.iter().find_map(|j| match j {
-            Judgement::OutExact(1, Value::Pointer(push, code)) => Some((push, *code)),
-            _ => None,
-        }) else {
-            return t;
-        };
+    //     let Some((next_push, next_code)) = t.judgements.iter().find_map(|j| match j {
+    //         Judgement::OutExact(1, Value::Pointer(push, code)) => Some((push, *code)),
+    //         _ => None,
+    //     }) else {
+    //         return t;
+    //     };
 
-        let next_type = pointer_type(self.lib, &next_push, next_code);
+    //     let next_type = pointer_type(self.lib, &next_push, next_code);
 
-        t.compose(InnerWord::Drop(0).r#type())
-            .compose(InnerWord::Drop(0).r#type())
-            .compose(next_type)
-    }
+    //     t.compose(InnerWord::Drop(0).r#type())
+    //         .compose(InnerWord::Drop(0).r#type())
+    //         .compose(next_type)
+    // }
 }
 
-fn pointer_type(lib: &Library, push: &[Value], code: CodeIndex) -> Type {
-    let push_type = push
-        .iter()
-        .map(|v| InnerWord::Push(v.clone()).r#type())
-        .fold(Type::NULL, Type::compose);
-    push_type.compose(CodeRef { lib, idx: code }.r#type())
-}
+// fn pointer_type(lib: &Library, push: &[Value], code: CodeIndex) -> Type {
+//     let push_type = push
+//         .iter()
+//         .map(|v| InnerWord::Push(v.clone()).r#type())
+//         .fold(Type::NULL, Type::compose);
+//     push_type.compose(CodeRef { lib, idx: code }.r#type())
+// }
 
 #[derive(Clone, Copy)]
 pub struct SentenceRef<'a, 't> {

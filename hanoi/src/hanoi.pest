@@ -12,14 +12,29 @@ bool = { "true" | "false" }
 
 int = @{ ASCII_DIGIT+ }
 
+char_lit = ${ "'" ~ lit_char ~ "'" }
+    lit_char = @{
+        !("'" | "\\") ~ ANY
+        | "\\" ~ ("'" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+        | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+    }
+
 identifier   = @{ !keyword ~ id_non_digit ~ (id_non_digit | ASCII_DIGIT)* }
 id_non_digit = _{ ASCII_ALPHA | "_" }
 
 func_call = { "#" ~ identifier ~ "(" ~ int ~ ")" }
 
-symbol = { "@" ~ identifier }
+symbol = { "@" ~ ( identifier | string ) }
 
-literal = {  bool | int }
+string = ${ "\"" ~ str_inner ~ "\"" }
+    str_inner = @{ str_char* }
+    str_char = {
+        !("\"" | "\\") ~ ANY
+        | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+        | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+    }
+
+literal = { bool | int | char_lit }
 
 expr = { literal | func_call | identifier | builtin | this | symbol }
 

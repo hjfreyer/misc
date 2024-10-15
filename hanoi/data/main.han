@@ -1,4 +1,38 @@
 
+mod csv {
+
+    let quoted = {};
+
+    let parser = {
+        // (caller iter next)
+        #mv(2) #mv(1) #curry #mv(1) @exec;
+        // (char iternext @yield caller)
+        #cp(3) ',' #eq if {
+            // (',' iternext @yield caller next)
+            #drop(4) #drop(2) #mv(2) #mv(1) #curry @nextfield #mv(2) @exec;
+            // (caller iternext)
+            @parser this #get @exec
+        } else {
+            #cp(3) '\n' #eq if { 
+                // ('\n' iternext @yield caller next)
+                #drop(4) #drop(2) #mv(2) #mv(1) #curry @nextrow #mv(2) @exec;
+                // (caller iternext)
+                @parser this #get @exec
+            } else {
+                #cp(3) '"' #eq if {
+                    // ('"' iternext @yield caller)
+                    #drop(3) #drop(1) #mv(1) @quoted this #get @exec
+                } else {
+                    // (char iternext @yield caller next);
+                    #drop(2) #mv(2) #mv(1) #curry @fieldchar #mv(2) @exec;
+                    // (caller iternext)
+                    @parser this #get @exec
+                }
+            }
+        }
+    };
+}
+
 mod tests {
     let enumerate = {
         // (caller next)
@@ -28,14 +62,14 @@ mod iter {
         // (caller fn iter self next)
         #mv(2) @exec;
         // (caller fn self (iternext val @yield)|(@ok))
-        #copy(0) @ok #eq if {
+        #cp(0) @ok #eq if {
             // (caller fn self @ok)
             #drop(1) #drop(1) #mv(1) @exec
         } else {
             // (caller fn self iternext val @yield)
-            #copy(0) @yield #eq if {
+            #cp(0) @yield #eq if {
                 // (caller fn self iternext val @yield next)
-                #mv(2) #copy(5)
+                #mv(2) #cp(5)
                 // (caller fn self iternext @yield next val fn)
                 @exec;
                 // (caller fn self iternext @yield mapped @ok)
@@ -43,7 +77,7 @@ mod iter {
                     // (caller fn self iternext @yield mapped)
                     #mv(4) #mv(3) #mv(4)
                     // (caller @yield mapped fn iternext self)
-                    #copy(0) #curry #curry #curry
+                    #cp(0) #curry #curry #curry
                     // (caller @yield mapped mapnext)
                     #mv(1) #mv(2) #mv(3) @exec
                 } else {
@@ -59,19 +93,28 @@ mod iter {
         // (caller fn iter)
         @map_rec this #get @map_rec this #get @exec
     };
+
+    let symbol_chars = {
+        // (caller symbol offset)
+        #cp(1) #cp(1) #symbol_char_at
+        // (caller symbol offset char)
+        #mv(2) #mv(2) 1 #add @symbol_chars this #get #curry #curry @yield
+        // (caller char next @yield)
+        #mv(3) @exec
+    };
 }
 
 let count_rec = {
     // (caller self i)
     1 #add
     // (caller self (i+1))
-    #copy(0)
+    #cp(0)
     // (caller self (i+1) (i+1))
     #mv(2)
     // (caller (i+1) (i+1) self)
     #mv(2)
     // (caller (i+1) self (i+1))
-    #copy(1)
+    #cp(1)
     // (caller (i+1) self (i+1) self)
     #curry
     // (caller (i+1) self [(i+1)](self))
@@ -90,23 +133,41 @@ let count = {
 
 let double = {
     // (caller n)
-    #copy(0) #add @ok #mv(2) @exec
+    #cp(0) #add @ok #mv(2) @exec
 };
 
-let main_rec = {
-    // (iter self next)
-    #mv(2) @exec;
-    // (self iternext val @yield)
-    #drop(0) #drop(0) #mv(1) #copy(0)
-    // (iternext self self)
-    @exec
+let iter_and_reader = {
+    // (caller iter reader next)
+    #mv(3) #mv(3) #mv(2) #curry #curry #mv(1) @exec;
+    // ((@read_char|...) caller iter)
+    #cp(2) @read_char #eq if {
+        // (reader_next @read_char caller iter next)
+        #drop(3)
+        // (reader_next caller iter next)
+        #mv(3) #mv(3) #mv(2)
+        // ( iter reader_next caller next)
+        #curry #curry #mv(1)
+        // ((reader_next caller next) iter)
+        @exec;
+        // (char iter_next @yield reader_next caller)
+        #cp(2) @yield #assert_eq
+        // (char iter_next @yield reader_next caller)
+        #mv(3) #mv(3) #mv(3)
+        // (caller iter_next char @yield reader_next)
+        #curry #curry
+        // (iter_next caller (char @yield reader_next))
+        #mv(2) #mv(1) @iter_and_reader this #get @exec
+    } else {
+
+    }
 };
 
 let main = {
-    @double this #get 
-        @count this #get 
-        @map @iter this #get #get 
-        #curry #curry 
-        @main_rec this #get 
-        @main_rec this #get @exec
+    @"h,e\n\"llo\"" 0 @symbol_chars @iter this #get #get #curry #curry
+        @parser @csv this #get #get @exec;
+    #mv(1) @fieldchar #assert_eq #mv(2) 'h' #assert_eq #mv(1) @exec;
+    #mv(1) @nextfield #assert_eq #mv(1) @exec;
+    #mv(1) @fieldchar #assert_eq #mv(2) 'e' #assert_eq #mv(1) @exec;
+    #mv(1) @nextrow #assert_eq #mv(1) @exec;
+    #mv(1) @fieldchar #assert_eq #mv(2) 'l' #assert_eq #mv(1) @exec;
 };

@@ -39,6 +39,15 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &InnerWord) {
             };
             stack.push(Value::Bool(a == b));
         }
+        InnerWord::Builtin(Builtin::AssertEq) => {
+            let Some(b) = stack.pop() else {
+                panic!("bad value")
+            };
+            let Some(a) = stack.pop() else {
+                panic!("bad value")
+            };
+            assert_eq!(a, b);
+        }
         InnerWord::Builtin(Builtin::Curry) => {
             let (mut closure, code) = stack.pop().unwrap().into_code(lib).unwrap();
             let Some(val) = stack.pop() else { panic!() };
@@ -89,6 +98,23 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &InnerWord) {
                 crate::flat::EntryView::Code(code) => Value::Pointer(vec![], code.idx),
                 crate::flat::EntryView::Namespace(ns) => Value::Namespace(ns.idx),
             });
+        }
+        InnerWord::Builtin(Builtin::SymbolCharAt) => {
+            let Some(Value::Usize(idx)) = stack.pop() else {
+                panic!("bad value")
+            };
+            let Some(Value::Symbol(sym)) = stack.pop() else {
+                panic!("bad value")
+            };
+
+            stack.push(sym.chars().nth(idx).unwrap().into());
+        }
+        InnerWord::Builtin(Builtin::SymbolLen) => {
+            let Some(Value::Symbol(sym)) = stack.pop() else {
+                panic!("bad value")
+            };
+
+            stack.push(sym.chars().count().into());
         }
     }
 }
@@ -169,7 +195,6 @@ fn control_flow<'t>(
             }
         }
         "exec" => {
-            println!("{:?}", stack);
             let (push, code) = stack.pop().unwrap().into_code(lib).unwrap();
             if code == CodeIndex::TRAP {
                 None
