@@ -1,4 +1,7 @@
-use std::{collections::HashMap, usize};
+use std::{
+    collections::{HashMap, VecDeque},
+    usize,
+};
 
 use derive_more::derive::{From, Into};
 use itertools::Itertools;
@@ -115,17 +118,23 @@ impl<'t> Library<'t> {
         ns_idx: NamespaceIndex,
         sentence: ast::Sentence<'t>,
     ) -> SentenceIndex {
-        let new_sentence = Sentence(
-            sentence
-                .exprs
-                .into_iter()
-                .map(|e| self.visit_expr(ns_idx, e))
-                .collect(),
-        );
-        self.sentences.push_and_get_key(new_sentence)
+        let mut names: Option<VecDeque<Option<String>>> = sentence
+            .args
+            .map(|names| names.iter().rev().map(|s| Some(s.to_owned())).collect());
+        let mut words = vec![];
+        for e in sentence.exprs {
+            words.push(self.visit_expr(ns_idx, &mut names, e.into()))
+        }
+        self.sentences.push_and_get_key(Sentence(words))
     }
 
-    fn visit_expr(&mut self, ns_idx: NamespaceIndex, e: Expression<'t>) -> WordIndex {
+    fn visit_expr(
+        &mut self,
+        ns_idx: NamespaceIndex,
+        names: &mut Option<VecDeque<Option<String>>>,
+        e: Expression<'t>,
+    ) -> WordIndex {
+        let start_names = names.clone();
         let w = match e.inner {
             InnerExpression::This => InnerWord::Push(Value::Namespace(ns_idx)),
             InnerExpression::Symbol(v) => InnerWord::Push(Value::Symbol(v)),
@@ -139,7 +148,25 @@ impl<'t> Library<'t> {
                 _ => panic!("unknown reference: {}", f),
             },
             InnerExpression::Reference(r) => {
-                panic!("unknown reference: {}", r)
+                let names = names.as_ref().unwrap();
+                let Some(idx) = names.iter().position(|n| n.as_ref() == Some(&r)) else {
+                    panic!("unknown reference: {}", r)
+                };
+                InnerWord::Move(idx)
+            }
+            InnerExpression::Delete(r) => {
+                let names = names.as_ref().unwrap();
+                let Some(idx) = names.iter().position(|n| n.as_ref() == Some(&r)) else {
+                    panic!("unknown reference: {}", r)
+                };
+                InnerWord::Drop(idx)
+            }
+            InnerExpression::Copy(r) => {
+                let names = names.as_ref().unwrap();
+                let Some(idx) = names.iter().position(|n| n.as_ref() == Some(&r)) else {
+                    panic!("unknown reference: {}", r)
+                };
+                InnerWord::Copy(idx)
             }
             InnerExpression::Builtin(name) => {
                 if let Some(builtin) = Builtin::ALL.iter().find(|builtin| builtin.name() == name) {
@@ -149,9 +176,43 @@ impl<'t> Library<'t> {
                 }
             }
         };
+        if let Some(names) = names {
+            match &w {
+                InnerWord::Push(_) | InnerWord::Copy(_) => names.push_front(None),
+                InnerWord::Drop(idx) => {
+                    names.remove(*idx);
+                }
+                InnerWord::Move(idx) => {
+                    let moved = names.remove(*idx).unwrap();
+                    names.push_front(moved);
+                }
+                InnerWord::Builtin(builtin) => match builtin {
+                    Builtin::Add
+                    | Builtin::Eq
+                    | Builtin::Curry
+                    | Builtin::Or
+                    | Builtin::And
+                    | Builtin::Get
+                    | Builtin::SymbolCharAt => {
+                        names.pop_front();
+                        names.pop_front();
+                        names.push_front(None);
+                    }
+                    Builtin::Not | Builtin::SymbolLen | Builtin::IsCode => {
+                        names.pop_front();
+                        names.push_front(None);
+                    }
+                    Builtin::AssertEq => {
+                        names.pop_front();
+                        names.pop_front();
+                    }
+                },
+            };
+        }
         self.words.push_and_get_key(Word {
             inner: w,
             span: Some(e.span),
+            names: start_names,
         })
     }
 }
@@ -182,7 +243,7 @@ macro_rules! builtins {
     {
         $(($ident:ident, $name:ident),)*
     } => {
-        #[derive(Debug, Clone, Copy)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub enum Builtin {
             $($ident,)*
         }
@@ -238,13 +299,33 @@ builtins! {
 //     }
 // }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Word<'t> {
     pub inner: InnerWord,
     pub span: Option<Span<'t>>,
+    pub names: Option<VecDeque<Option<String>>>,
 }
 
-#[derive(Debug, Clone)]
+impl<'t> From<InnerWord> for Word<'t> {
+    fn from(value: InnerWord) -> Self {
+        Self {
+            inner: value,
+            span: None,
+            names: None,
+        }
+    }
+}
+impl<'t> From<Value> for Word<'t> {
+    fn from(value: Value) -> Self {
+        Self {
+            inner: InnerWord::Push(value),
+            span: None,
+            names: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InnerWord {
     Push(Value),
     Copy(usize),
@@ -307,7 +388,7 @@ pub struct ValueView<'a, 't> {
 impl<'a, 't> std::fmt::Display for ValueView<'a, 't> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.value {
-            Value::Symbol(arg0) => write!(f, "@{}", arg0),
+            Value::Symbol(arg0) => write!(f, "@{}", arg0.replace("\n", "\\n")),
             Value::Usize(arg0) => write!(f, "{}", arg0),
             Value::List(arg0) => todo!(),
             Value::Handle(arg0) => todo!(),
@@ -484,14 +565,11 @@ impl<'a, 't> CodeRef<'a, 't> {
     pub fn words(self) -> Vec<Word<'t>> {
         match self.view() {
             CodeView::Sentence(sentence) => sentence.words().collect(),
-            CodeView::AndThen(sentence, and_then) => std::iter::once(
-                (Word {
-                    inner: InnerWord::Push(Value::Pointer(vec![], and_then.idx)),
-                    span: None,
-                }),
-            )
-            .chain(sentence.words().into_iter())
-            .collect(),
+            CodeView::AndThen(sentence, and_then) => {
+                std::iter::once(InnerWord::Push(Value::Pointer(vec![], and_then.idx)).into())
+                    .chain(sentence.words().into_iter())
+                    .collect()
+            }
             CodeView::If {
                 cond,
                 true_case,
@@ -499,18 +577,9 @@ impl<'a, 't> CodeRef<'a, 't> {
             } => cond
                 .words()
                 .chain([
-                    Word {
-                        inner: InnerWord::Push(Value::Pointer(vec![], true_case.idx)),
-                        span: None,
-                    },
-                    Word {
-                        inner: InnerWord::Push(Value::Pointer(vec![], false_case.idx)),
-                        span: None,
-                    },
-                    Word {
-                        inner: InnerWord::Push(Value::Symbol("if".to_owned())),
-                        span: None,
-                    },
+                    Value::Pointer(vec![], true_case.idx).into(),
+                    Value::Pointer(vec![], false_case.idx).into(),
+                    Value::Symbol("if".to_owned()).into(),
                 ])
                 .collect(),
         }
@@ -663,5 +732,38 @@ impl Type {
             arity_out: other.arity_out,
             judgements: res,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pest::Span;
+
+    use super::*;
+    use crate::ast;
+    #[test]
+    fn names() {
+        const CODE: &'static str = r#"
+let foo = { (caller, iter, next) => caller next #curry iter @exec; };
+"#;
+        let ast = ast::Module::from_str(CODE).unwrap();
+        let lib = Library::from_ast(ast.namespace);
+
+        assert_eq!(
+            SentenceRef {
+                lib: &lib,
+                idx: lib.sentences.first_key().unwrap()
+            }
+            .words()
+            .map(|w| w.inner)
+            .collect_vec(),
+            vec![
+                InnerWord::Move(2),
+                InnerWord::Move(1),
+                InnerWord::Builtin(Builtin::Curry),
+                InnerWord::Move(1),
+                InnerWord::Push(Value::Symbol("exec".to_owned()))
+            ]
+        );
     }
 }

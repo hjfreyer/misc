@@ -35,6 +35,11 @@ pub struct Namespace<'t> {
     pub span: Span<'t>,
 }
 
+fn ident_from_pair<'t>(p: pest::iterators::Pair<'t, Rule>) -> &'t str {
+    assert_eq!(p.as_rule(), Rule::identifier);
+    p.as_str()
+}
+
 impl<'t> Namespace<'t> {
     fn from_pair(p: pest::iterators::Pair<'t, Rule>) -> Self {
         assert_eq!(p.as_rule(), Rule::namespace);
@@ -109,6 +114,8 @@ pub enum InnerExpression {
     Symbol(String),
     Builtin(String),
     Reference(String),
+    Delete(String),
+    Copy(String),
     FunctionLike(String, usize),
     Usize(usize),
     Bool(bool),
@@ -143,6 +150,12 @@ impl<'t> Expression<'t> {
                 }
             }
             Rule::identifier => InnerExpression::Reference(child.as_str().to_owned()),
+            Rule::delete => InnerExpression::Delete(
+                ident_from_pair(child.into_inner().exactly_one().unwrap()).to_owned(),
+            ),
+            Rule::copy => InnerExpression::Copy(
+                ident_from_pair(child.into_inner().exactly_one().unwrap()).to_owned(),
+            ),
             Rule::symbol => {
                 let ident = child.into_inner().exactly_one().unwrap();
                 match ident.as_rule() {
@@ -252,6 +265,7 @@ impl<'t> std::fmt::Debug for Code<'t> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sentence<'t> {
+    pub args: Option<Vec<String>>,
     pub exprs: Vec<Expression<'t>>,
     pub span: Span<'t>,
 }
@@ -267,16 +281,24 @@ impl Sentence<'_> {
 impl<'t> Sentence<'t> {
     fn from_pair(p: pest::iterators::Pair<'t, Rule>) -> Self {
         assert_eq!(p.as_rule(), Rule::sentence);
+        let span = p.as_span();
 
-        Sentence {
-            span: p.as_span(),
-            exprs: p
+        let mut inner = p.into_inner();
+
+        let first = inner.next().unwrap();
+
+        let (args, body) = if first.as_rule() == Rule::sentence_args {
+            let args = first
                 .into_inner()
-                .map(|word| {
-                    assert_eq!(word.as_rule(), Rule::expr);
-                    Expression::from_pair(word)
-                })
-                .collect(),
-        }
+                .map(|i| ident_from_pair(i).to_owned())
+                .collect();
+            (Some(args), inner.exactly_one().unwrap())
+        } else {
+            (None, first)
+        };
+
+        assert_eq!(body.as_rule(), Rule::sentence_body);
+        let exprs = body.into_inner().map(Expression::from_pair).collect();
+        Sentence { span, args, exprs }
     }
 }

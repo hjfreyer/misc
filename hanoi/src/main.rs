@@ -18,7 +18,7 @@ use ratatui::{
     layout::{Constraint, Layout},
     style::{Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{self, List, ListItem, ListState, Paragraph, ScrollbarState},
+    widgets::{self, List, ListItem, ListState, Paragraph, Row, ScrollbarState, Table, TableState},
     DefaultTerminal, Frame,
 };
 use typed_index_collections::TiVec;
@@ -29,7 +29,7 @@ struct Debugger<'t> {
     vm: Vm<'t>,
 
     code_scroll: u16,
-    stack_state: ListState,
+    stack_state: TableState,
 }
 
 impl<'t> Debugger<'t> {
@@ -79,22 +79,46 @@ impl<'t> Debugger<'t> {
             .on_blue()
     }
 
-    fn stack(&self) -> List<'static> {
-        let items: Vec<ListItem> = self
+    fn stack(&self) -> Table<'static> {
+        let names = self
+            .vm
+            .prog
+            .last()
+            .and_then(|w| w.names.clone())
+            .unwrap_or_else(|| self.vm.stack.iter().map(|_| None).collect());
+
+        let names_width = names
+            .iter()
+            .filter_map(|n| n.as_ref().map(|s| s.len() + 3))
+            .max()
+            .unwrap_or_default();
+
+        let items: Vec<Row> = self
             .vm
             .stack
             .iter()
-            .map(|v| {
-                ListItem::new({
+            .zip_eq(names.into_iter().rev())
+            .map(|(v, name)| {
+                Row::new([
+                    if let Some(name) = name {
+                        format!("{} = ", name)
+                    } else {
+                        "".to_owned()
+                    },
                     ValueView {
                         lib: &self.vm.lib,
                         value: v,
                     }
-                    .to_string()
-                })
+                    .to_string(),
+                ])
             })
             .collect();
-        List::new(items).highlight_style(Style::new().black().on_white())
+        Table::new(
+            items,
+            [Constraint::Length(names_width as u16), Constraint::Fill(1)],
+        )
+        .column_spacing(0)
+        .highlight_style(Style::new().black().on_white())
     }
 
     fn render_program(&mut self, frame: &mut Frame) {
@@ -174,7 +198,7 @@ fn debug(file: PathBuf) -> anyhow::Result<()> {
         code_scroll: 0,
         code: &code,
         vm,
-        stack_state: ListState::default(),
+        stack_state: TableState::default(),
     };
 
     let mut terminal = ratatui::init();
@@ -206,18 +230,9 @@ impl<'a, 't> Iterator for IterReader<'a, 't> {
                 let item = self.vm.stack.pop().unwrap();
 
                 self.vm.prog = vec![
-                    Word {
-                        inner: InnerWord::Push(Value::Pointer(vec![], CodeIndex::TRAP)),
-                        span: None,
-                    },
-                    Word {
-                        inner: InnerWord::Push(resume),
-                        span: None,
-                    },
-                    Word {
-                        inner: InnerWord::Push(Value::Symbol("exec".to_owned())),
-                        span: None,
-                    },
+                    Value::Pointer(vec![], CodeIndex::TRAP).into(),
+                    resume.into(),
+                    Value::Symbol("exec".to_owned()).into(),
                 ];
 
                 self.vm.prog.reverse();
@@ -238,34 +253,13 @@ fn test(file: PathBuf) -> anyhow::Result<()> {
     let lib = Library::from_ast(ast.namespace);
 
     let mut prog = vec![
-        Word {
-            inner: InnerWord::Push(Value::Pointer(vec![], CodeIndex::TRAP)),
-            span: None,
-        },
-        Word {
-            inner: InnerWord::Push(Value::Symbol("enumerate".to_string())),
-            span: None,
-        },
-        Word {
-            inner: InnerWord::Push(Value::Symbol("tests".to_string())),
-            span: None,
-        },
-        Word {
-            inner: InnerWord::Push(Value::Namespace(lib.root_namespace().idx)),
-            span: None,
-        },
-        Word {
-            inner: InnerWord::Builtin(Builtin::Get),
-            span: None,
-        },
-        Word {
-            inner: InnerWord::Builtin(Builtin::Get),
-            span: None,
-        },
-        Word {
-            inner: InnerWord::Push(Value::Symbol("exec".to_string())),
-            span: None,
-        },
+        Value::Pointer(vec![], CodeIndex::TRAP).into(),
+        Value::Symbol("enumerate".to_string()).into(),
+        Value::Symbol("tests".to_string()).into(),
+        Value::Namespace(lib.root_namespace().idx).into(),
+        InnerWord::Builtin(Builtin::Get).into(),
+        InnerWord::Builtin(Builtin::Get).into(),
+        Value::Symbol("exec".to_string()).into(),
     ];
     prog.reverse();
 
@@ -282,38 +276,14 @@ fn test(file: PathBuf) -> anyhow::Result<()> {
         println!("Running test: {}", tc_name);
 
         vm.prog = vec![
-            Word {
-                inner: InnerWord::Push(Value::Pointer(vec![], CodeIndex::TRAP)),
-                span: None,
-            },
-            Word {
-                inner: InnerWord::Push(Value::Symbol(tc_name)),
-                span: None,
-            },
-            Word {
-                inner: InnerWord::Push(Value::Symbol("run".to_string())),
-                span: None,
-            },
-            Word {
-                inner: InnerWord::Push(Value::Symbol("tests".to_string())),
-                span: None,
-            },
-            Word {
-                inner: InnerWord::Push(Value::Namespace(vm.lib.root_namespace().idx)),
-                span: None,
-            },
-            Word {
-                inner: InnerWord::Builtin(Builtin::Get),
-                span: None,
-            },
-            Word {
-                inner: InnerWord::Builtin(Builtin::Get),
-                span: None,
-            },
-            Word {
-                inner: InnerWord::Push(Value::Symbol("exec".to_string())),
-                span: None,
-            },
+            Value::Pointer(vec![], CodeIndex::TRAP).into(),
+            Value::Symbol(tc_name).into(),
+            Value::Symbol("run".to_string()).into(),
+            Value::Symbol("tests".to_string()).into(),
+            Value::Namespace(vm.lib.root_namespace().idx).into(),
+            InnerWord::Builtin(Builtin::Get).into(),
+            InnerWord::Builtin(Builtin::Get).into(),
+            Value::Symbol("exec".to_string()).into(),
         ];
         vm.prog.reverse();
         while vm.step() {}

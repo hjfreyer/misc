@@ -4,29 +4,26 @@ mod csv {
     let quoted = {};
 
     let parser = {
-        // (caller iter next)
-        #mv(2) #mv(1) #curry #mv(1) @exec;
-        // (char iternext @yield caller)
-        #cp(3) ',' #eq if {
-            // (',' iternext @yield caller next)
-            #drop(4) #drop(2) #mv(2) #mv(1) #curry @nextfield #mv(2) @exec;
-            // (caller iternext)
-            @parser this #get @exec
+        (caller, iter, next) => caller next #curry iter #curry @exec;
+        
+        (char, iternext, yld, caller) => ^yld *char ',' #eq if {
+            (char, iternext, caller, next) => 
+                ^char iternext next #curry @nextfield caller #curry #curry @exec;
+            (caller, iternext) => caller iternext @parser this #get #curry #curry @exec
         } else {
-            #cp(3) '\n' #eq if { 
-                // ('\n' iternext @yield caller next)
-                #drop(4) #drop(2) #mv(2) #mv(1) #curry @nextrow #mv(2) @exec;
-                // (caller iternext)
-                @parser this #get @exec
+            (char, iternext, caller) => *char '\n' #eq if { 
+                (char, iternext, caller, next) => 
+                    ^char iternext next #curry @nextrow caller #curry #curry @exec;
+                (caller, iternext) => caller iternext @parser this #get #curry #curry @exec
             } else {
-                #cp(3) '"' #eq if {
-                    // ('"' iternext @yield caller)
-                    #drop(3) #drop(1) #mv(1) @quoted this #get @exec
+                (char, iternext, caller) => *char '"' #eq if {
+                    (char, iternext, caller) => 
+                        ^char caller iternext @quoted this #get #curry #curry @exec
                 } else {
-                    // (char iternext @yield caller next);
-                    #drop(2) #mv(2) #mv(1) #curry @fieldchar #mv(2) @exec;
+                    (char, iternext, caller, next) => 
+                        iternext next #curry @fieldchar caller #curry #curry #curry @exec;
                     // (caller iternext)
-                    @parser this #get @exec
+                    (caller, iternext) => caller iternext @parser this #get #curry #curry @exec
                 }
             }
         }
@@ -95,12 +92,15 @@ mod iter {
     };
 
     let symbol_chars = {
-        // (caller symbol offset)
-        #cp(1) #cp(1) #symbol_char_at
-        // (caller symbol offset char)
-        #mv(2) #mv(2) 1 #add @symbol_chars this #get #curry #curry @yield
-        // (caller char next @yield)
-        #mv(3) @exec
+        (caller, symbol, offset, next) => 
+            *symbol *offset #symbol_char_at
+            symbol offset next #curry #curry
+            @yield
+            caller
+            #curry #curry #curry
+            @exec;
+        (caller, symbol, offset) => 
+            caller symbol offset 1 #add @symbol_chars this #get #curry #curry #curry @exec
     };
 }
 
@@ -164,10 +164,10 @@ let iter_and_reader = {
 
 let main = {
     @"h,e\n\"llo\"" 0 @symbol_chars @iter this #get #get #curry #curry
-        @parser @csv this #get #get @exec;
-    #mv(1) @fieldchar #assert_eq #mv(2) 'h' #assert_eq #mv(1) @exec;
-    #mv(1) @nextfield #assert_eq #mv(1) @exec;
-    #mv(1) @fieldchar #assert_eq #mv(2) 'e' #assert_eq #mv(1) @exec;
-    #mv(1) @nextrow #assert_eq #mv(1) @exec;
-    #mv(1) @fieldchar #assert_eq #mv(2) 'l' #assert_eq #mv(1) @exec;
+        @parser @csv this #get #get #curry #curry @exec;
+    #mv(1) @fieldchar #assert_eq #mv(2) 'h' #assert_eq #mv(1) #curry @exec;
+    #mv(1) @nextfield #assert_eq #mv(1) #curry @exec;
+    #mv(1) @fieldchar #assert_eq #mv(2) 'e' #assert_eq #mv(1) #curry @exec;
+    #mv(1) @nextrow #assert_eq #mv(1) #curry @exec;
+    #mv(1) @fieldchar #assert_eq #mv(2) 'l' #assert_eq #mv(1) #curry @exec;
 };

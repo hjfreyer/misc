@@ -196,6 +196,7 @@ fn control_flow<'t>(
         }
         "exec" => {
             let (push, code) = stack.pop().unwrap().into_code(lib).unwrap();
+            assert_eq!(stack, &vec![]);
             if code == CodeIndex::TRAP {
                 None
             } else {
