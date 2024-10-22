@@ -35,9 +35,44 @@ pub struct Namespace<'t> {
     pub span: Span<'t>,
 }
 
-fn ident_from_pair<'t>(p: pest::iterators::Pair<'t, Rule>) -> &'t str {
+fn ident_from_pair<'t>(p: pest::iterators::Pair<'t, Rule>) -> Span<'t> {
     assert_eq!(p.as_rule(), Rule::identifier);
-    p.as_str()
+    p.as_span()
+}
+
+fn literal_from_pair(p: pest::iterators::Pair<Rule>) -> Value {
+    assert_eq!(p.as_rule(), Rule::literal);
+    let literal = p.into_inner().exactly_one().unwrap();
+    match literal.as_rule() {
+        Rule::int => Value::Usize(literal.as_str().parse().unwrap()),
+        Rule::bool => Value::Bool(literal.as_str().parse().unwrap()),
+        Rule::char_lit => {
+            let chr = literal.into_inner().exactly_one().unwrap();
+            assert_eq!(Rule::lit_char, chr.as_rule());
+
+            let c = match chr.as_str() {
+                "\\n" => '\n',
+                c => c.chars().exactly_one().unwrap(),
+            };
+
+            Value::Char(c)
+        }
+
+        Rule::symbol => {
+            let ident = literal.into_inner().exactly_one().unwrap();
+            match ident.as_rule() {
+                Rule::identifier => Value::Symbol(ident.as_str().to_owned()),
+                Rule::string => {
+                    let inner = ident.into_inner().exactly_one().unwrap();
+                    assert_eq!(inner.as_rule(), Rule::str_inner);
+
+                    Value::Symbol(inner.as_str().replace("\\n", "\n").replace("\\\"", "\""))
+                }
+                _ => unreachable!(),
+            }
+        }
+        _ => unreachable!("{:?}", literal),
+    }
 }
 
 impl<'t> Namespace<'t> {
@@ -111,15 +146,12 @@ pub struct Expression<'t> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InnerExpression {
-    Symbol(String),
+    Literal(Value),
     Builtin(String),
     Reference(String),
     Delete(String),
     Copy(String),
     FunctionLike(String, usize),
-    Usize(usize),
-    Bool(bool),
-    Char(char),
     This,
 }
 
@@ -130,47 +162,18 @@ impl<'t> Expression<'t> {
         let span = p.as_span();
         let child = p.into_inner().exactly_one().unwrap();
         let inner = match child.as_rule() {
-            Rule::literal => {
-                let literal = child.into_inner().exactly_one().unwrap();
-                match literal.as_rule() {
-                    Rule::int => InnerExpression::Usize(literal.as_str().parse().unwrap()),
-                    Rule::bool => InnerExpression::Bool(literal.as_str().parse().unwrap()),
-                    Rule::char_lit => {
-                        let chr = literal.into_inner().exactly_one().unwrap();
-                        assert_eq!(Rule::lit_char, chr.as_rule());
-
-                        let c = match chr.as_str() {
-                            "\\n" => '\n',
-                            c => c.chars().exactly_one().unwrap(),
-                        };
-
-                        InnerExpression::Char(c)
-                    }
-                    _ => unreachable!("{:?}", literal),
-                }
-            }
+            Rule::literal => InnerExpression::Literal(literal_from_pair(child)),
             Rule::identifier => InnerExpression::Reference(child.as_str().to_owned()),
             Rule::delete => InnerExpression::Delete(
-                ident_from_pair(child.into_inner().exactly_one().unwrap()).to_owned(),
+                ident_from_pair(child.into_inner().exactly_one().unwrap())
+                    .as_str()
+                    .to_owned(),
             ),
             Rule::copy => InnerExpression::Copy(
-                ident_from_pair(child.into_inner().exactly_one().unwrap()).to_owned(),
+                ident_from_pair(child.into_inner().exactly_one().unwrap())
+                    .as_str()
+                    .to_owned(),
             ),
-            Rule::symbol => {
-                let ident = child.into_inner().exactly_one().unwrap();
-                match ident.as_rule() {
-                    Rule::identifier => InnerExpression::Symbol(ident.as_str().to_owned()),
-                    Rule::string => {
-                        let inner = ident.into_inner().exactly_one().unwrap();
-                        assert_eq!(inner.as_rule(), Rule::str_inner);
-
-                        InnerExpression::Symbol(
-                            inner.as_str().replace("\\n", "\n").replace("\\\"", "\""),
-                        )
-                    }
-                    _ => unreachable!(),
-                }
-            }
             Rule::builtin => {
                 let ident = child.into_inner().exactly_one().unwrap();
                 assert_eq!(ident.as_rule(), Rule::identifier);
@@ -192,19 +195,19 @@ impl<'t> Expression<'t> {
     }
 }
 
-impl From<bool> for InnerExpression {
-    fn from(value: bool) -> Self {
-        Self::Bool(value)
-    }
-}
+// impl From<bool> for InnerExpression {
+//     fn from(value: bool) -> Self {
+//         Self::Bool(value)
+//     }
+// }
 
-impl From<usize> for InnerExpression {
-    fn from(value: usize) -> Self {
-        Self::Usize(value)
-    }
-}
+// impl From<usize> for InnerExpression {
+//     fn from(value: usize) -> Self {
+//         Self::Usize(value)
+//     }
+// }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Code<'t> {
     Sentence(Sentence<'t>),
     AndThen(Sentence<'t>, Box<Code<'t>>),
@@ -213,11 +216,22 @@ pub enum Code<'t> {
         true_case: Box<Code<'t>>,
         false_case: Box<Code<'t>>,
     },
+    Bind {
+        name: Span<'t>,
+        inner: Box<Code<'t>>,
+        span: Span<'t>,
+    },
+    Match {
+        cases: Vec<MatchCase<'t>>,
+        els: Box<Code<'t>>,
+        span: Span<'t>,
+    },
 }
 
 impl<'t> Code<'t> {
     fn from_pair(p: pest::iterators::Pair<'t, Rule>) -> Self {
         assert_eq!(p.as_rule(), Rule::code);
+        let span = p.as_span();
         let inner = p.into_inner().exactly_one().unwrap();
         match inner.as_rule() {
             Rule::sentence => Code::Sentence(Sentence::from_pair(inner)),
@@ -238,34 +252,105 @@ impl<'t> Code<'t> {
                     false_case: Box::new(Code::from_pair(false_case)),
                 }
             }
+            Rule::match_block => {
+                let (cases, els) = inner.into_inner().collect_tuple().unwrap();
+                Code::Match {
+                    cases: cases.into_inner().map(MatchCase::from_pair).collect(),
+                    els: Box::new(Code::from_pair(els)),
+                    span,
+                }
+            }
+            Rule::bind => {
+                let (name, body) = inner.into_inner().collect_tuple().unwrap();
+
+                Code::Bind {
+                    name: ident_from_pair(name),
+                    inner: Box::new(Code::from_pair(body)),
+                    span,
+                }
+            }
 
             _ => unreachable!("{:?}", inner),
         }
     }
 }
 
-impl<'t> std::fmt::Debug for Code<'t> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Sentence(arg0) => arg0.fmt(f),
-            Self::AndThen(arg0, arg1) => write!(f, "{:?}; {:?}", arg0, arg1),
-            // Self::Curried(arg0, arg1) => write!(f, "[{:?}]({:?})", arg0, arg1),
-            Self::If {
-                cond,
-                true_case,
-                false_case,
-            } => write!(
-                f,
-                "{:?} if {{ {:?} }} else {{ {:?} }}",
-                cond, true_case, false_case
-            ),
+// impl<'t> std::fmt::Debug for Code<'t> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             Self::Sentence(arg0) => arg0.fmt(f),
+//             Self::AndThen(arg0, arg1) => write!(f, "{:?}; {:?}", arg0, arg1),
+//             // Self::Curried(arg0, arg1) => write!(f, "[{:?}]({:?})", arg0, arg1),
+//             Self::If {
+//                 cond,
+//                 true_case,
+//                 false_case,
+//             } => write!(
+//                 f,
+//                 "{:?} if {{ {:?} }} else {{ {:?} }}",
+//                 cond, true_case, false_case
+//             ),
+//             Self::Match { .. } => todo!(),
+//             Self::Match { .. } => todo!(),
+//         }
+//     }
+// }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MatchCase<'t> {
+    pub value: Value,
+    pub body: Code<'t>,
+    pub span: Span<'t>,
+}
+
+impl<'t> MatchCase<'t> {
+    fn from_pair(p: pest::iterators::Pair<'t, Rule>) -> Self {
+        assert_eq!(p.as_rule(), Rule::match_case);
+        let span = p.as_span();
+
+        let (value, body) = p.into_inner().collect_tuple().unwrap();
+
+        Self {
+            value: literal_from_pair(value),
+            body: Code::from_pair(body),
+            span,
         }
     }
 }
 
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub struct MatchArg<'t> {
+//     pub inner: MatchArgInner,
+//     pub span: Span<'t>,
+// }
+
+// impl<'t> MatchArg<'t> {
+//     fn from_pair(p: pest::iterators::Pair<'t, Rule>) -> Self {
+//         assert_eq!(p.as_rule(), Rule::match_arg);
+
+//         let span = p.as_span();
+//         let inner = p.into_inner().exactly_one().unwrap();
+
+//         Self {
+//             span,
+//             inner: match inner.as_rule() {
+//                 Rule::identifier => MatchArgInner::Identifier(ident_from_pair(inner).to_owned()),
+//                 Rule::literal => MatchArgInner::Literal(literal_from_pair(inner).to_owned()),
+//                 _ => unreachable!(),
+//             },
+//         }
+//     }
+// }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MatchArgInner {
+    Identifier(String),
+    Literal(Value),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sentence<'t> {
-    pub args: Option<Vec<String>>,
+    // pub args: Option<Vec<String>>,
     pub exprs: Vec<Expression<'t>>,
     pub span: Span<'t>,
 }
@@ -285,20 +370,25 @@ impl<'t> Sentence<'t> {
 
         let mut inner = p.into_inner();
 
-        let first = inner.next().unwrap();
+        let body = inner.next().unwrap();
 
-        let (args, body) = if first.as_rule() == Rule::sentence_args {
-            let args = first
-                .into_inner()
-                .map(|i| ident_from_pair(i).to_owned())
-                .collect();
-            (Some(args), inner.exactly_one().unwrap())
-        } else {
-            (None, first)
-        };
+        // let (args, body) = if first.as_rule() == Rule::sentence_args {
+        //     unreachable!();
+        //     // let args = first
+        //     //     .into_inner()
+        //     //     .map(|i| ident_from_pair(i).to_owned())
+        //     //     .collect();
+        //     // (Some(args), inner.exactly_one().unwrap())
+        // } else {
+        //     (None, first)
+        // };
 
         assert_eq!(body.as_rule(), Rule::sentence_body);
         let exprs = body.into_inner().map(Expression::from_pair).collect();
-        Sentence { span, args, exprs }
+        Sentence {
+            span,
+            //args,
+            exprs,
+        }
     }
 }

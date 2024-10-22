@@ -79,7 +79,7 @@ impl<'t> Library<'t> {
                         .push((decl.name, Entry::Namespace(subns)));
                 }
                 ast::DeclValue::Code(code) => {
-                    let code_idx = self.visit_code(&decl.name, ns_idx, code);
+                    let code_idx = self.visit_code(&decl.name, ns_idx, VecDeque::new(), code);
                     self.namespaces[ns_idx]
                         .0
                         .push((decl.name, Entry::Code(code_idx)));
@@ -89,24 +89,77 @@ impl<'t> Library<'t> {
         ns_idx
     }
 
-    fn visit_code(&mut self, name: &str, ns_idx: NamespaceIndex, code: ast::Code<'t>) -> CodeIndex {
+    fn visit_code(
+        &mut self,
+        name: &str,
+        ns_idx: NamespaceIndex,
+        names: VecDeque<Option<String>>,
+        code: ast::Code<'t>,
+    ) -> CodeIndex {
         let new_code = match code {
             ast::Code::Sentence(sentence) => {
-                Code::Sentence(self.visit_sentence(name, ns_idx, sentence))
+                Code::Sentence(self.visit_sentence(name, ns_idx, names, sentence))
             }
             ast::Code::AndThen(sentence, code) => Code::AndThen(
-                self.visit_sentence(name, ns_idx, sentence),
-                self.visit_code(name, ns_idx, *code),
+                self.visit_sentence(name, ns_idx, names, sentence),
+                self.visit_code(name, ns_idx, VecDeque::new(), *code),
             ),
             ast::Code::If {
                 cond,
                 true_case,
                 false_case,
             } => Code::If {
-                cond: self.visit_sentence(name, ns_idx, cond),
-                true_case: self.visit_code(name, ns_idx, *true_case),
-                false_case: self.visit_code(name, ns_idx, *false_case),
+                cond: self.visit_sentence(name, ns_idx, names, cond),
+                true_case: self.visit_code(name, ns_idx, VecDeque::new(), *true_case),
+                false_case: self.visit_code(name, ns_idx, VecDeque::new(), *false_case),
             },
+            ast::Code::Bind {
+                name: var_name,
+                inner,
+                span,
+            } => Code::Bind {
+                name: var_name.as_str().to_owned(),
+                body: self.visit_code(
+                    name,
+                    ns_idx,
+                    [Some(var_name.as_str().to_owned())]
+                        .into_iter()
+                        .chain(names)
+                        .collect(),
+                    *inner,
+                ),
+            },
+            ast::Code::Match {
+                cases,
+                els,
+                span: _,
+            } => {
+                let inner_names: VecDeque<Option<String>> =
+                    names.clone().into_iter().skip(1).collect();
+                Code::Match {
+                    cases: cases
+                        .into_iter()
+                        .map(|case| {
+                            // let body_names = case
+                            // .args
+                            // .iter()
+                            // .filter_map(|arg| match &arg.inner {
+                            //     ast::MatchArgInner::Identifier(i) => Some(Some(i.clone())),
+                            //     ast::MatchArgInner::Literal(value) => None,
+                            // })
+                            // .collect();
+
+                            let body =
+                                self.visit_code(name, ns_idx, inner_names.clone(), case.body);
+                            MatchCase {
+                                cond: case.value,
+                                body,
+                            }
+                        })
+                        .collect(),
+                    els: self.visit_code(name, ns_idx, names, *els),
+                }
+            }
         };
         self.code_to_name.push(name.to_owned());
         self.codes.push_and_get_key(new_code)
@@ -116,11 +169,21 @@ impl<'t> Library<'t> {
         &mut self,
         name: &str,
         ns_idx: NamespaceIndex,
+        mut names: VecDeque<Option<String>>,
         sentence: ast::Sentence<'t>,
     ) -> SentenceIndex {
-        let mut names: Option<VecDeque<Option<String>>> = sentence
-            .args
-            .map(|names| names.iter().rev().map(|s| Some(s.to_owned())).collect());
+        // let mut args: Option<VecDeque<Option<String>>> = sentence
+        // .args
+        // .map(|names| names.iter().rev().map(|s| Some(s.to_owned())).collect());
+
+        // let mut names = match (args, names) {
+        //         (None, None) => None,
+        //         (Some(args), None) => Some(args),
+        //         (None, Some(names)) => Some(names),
+        //         (Some(args), Some(names)) => {
+        //             Some(args.into_iter().chain(names).collect())
+        //         }
+        //     };
         let mut words = vec![];
         for e in sentence.exprs {
             words.push(self.visit_expr(ns_idx, &mut names, e.into()))
@@ -131,16 +194,13 @@ impl<'t> Library<'t> {
     fn visit_expr(
         &mut self,
         ns_idx: NamespaceIndex,
-        names: &mut Option<VecDeque<Option<String>>>,
+        names: &mut VecDeque<Option<String>>,
         e: Expression<'t>,
     ) -> WordIndex {
         let start_names = names.clone();
         let w = match e.inner {
             InnerExpression::This => InnerWord::Push(Value::Namespace(ns_idx)),
-            InnerExpression::Symbol(v) => InnerWord::Push(Value::Symbol(v)),
-            InnerExpression::Usize(v) => InnerWord::Push(Value::Usize(v)),
-            InnerExpression::Bool(v) => InnerWord::Push(Value::Bool(v)),
-            InnerExpression::Char(v) => InnerWord::Push(Value::Char(v)),
+            InnerExpression::Literal(v) => InnerWord::Push(v),
             InnerExpression::FunctionLike(f, idx) => match f.as_str() {
                 "cp" => InnerWord::Copy(idx),
                 "drop" => InnerWord::Drop(idx),
@@ -148,21 +208,18 @@ impl<'t> Library<'t> {
                 _ => panic!("unknown reference: {}", f),
             },
             InnerExpression::Reference(r) => {
-                let names = names.as_ref().unwrap();
                 let Some(idx) = names.iter().position(|n| n.as_ref() == Some(&r)) else {
                     panic!("unknown reference: {}", r)
                 };
                 InnerWord::Move(idx)
             }
             InnerExpression::Delete(r) => {
-                let names = names.as_ref().unwrap();
                 let Some(idx) = names.iter().position(|n| n.as_ref() == Some(&r)) else {
                     panic!("unknown reference: {}", r)
                 };
                 InnerWord::Drop(idx)
             }
             InnerExpression::Copy(r) => {
-                let names = names.as_ref().unwrap();
                 let Some(idx) = names.iter().position(|n| n.as_ref() == Some(&r)) else {
                     panic!("unknown reference: {}", r)
                 };
@@ -176,64 +233,62 @@ impl<'t> Library<'t> {
                 }
             }
         };
-        if let Some(names) = names {
-            match &w {
-                InnerWord::Push(_) | InnerWord::Copy(_) => names.push_front(None),
-                InnerWord::Drop(idx) => {
-                    names.remove(*idx);
+        match &w {
+            InnerWord::Push(_) | InnerWord::Copy(_) => names.push_front(None),
+            InnerWord::Drop(idx) => {
+                names.remove(*idx);
+            }
+            InnerWord::Move(idx) => {
+                let moved = names.remove(*idx).unwrap();
+                names.push_front(moved);
+            }
+            InnerWord::Builtin(builtin) => match builtin {
+                Builtin::Add
+                | Builtin::Eq
+                | Builtin::Curry
+                | Builtin::Or
+                | Builtin::And
+                | Builtin::Get
+                | Builtin::SymbolCharAt => {
+                    names.pop_front();
+                    names.pop_front();
+                    names.push_front(None);
                 }
-                InnerWord::Move(idx) => {
-                    let moved = names.remove(*idx).unwrap();
-                    names.push_front(moved);
+                Builtin::NsEmpty => {
+                    names.push_front(None);
                 }
-                InnerWord::Builtin(builtin) => match builtin {
-                    Builtin::Add
-                    | Builtin::Eq
-                    | Builtin::Curry
-                    | Builtin::Or
-                    | Builtin::And
-                    | Builtin::Get
-                    | Builtin::SymbolCharAt => {
-                        names.pop_front();
-                        names.pop_front();
-                        names.push_front(None);
-                    }
-                    Builtin::NsEmpty => {
-                        names.push_front(None);
-                    }
-                    Builtin::NsGet => {
-                        let ns = names.pop_front().unwrap();
-                        names.pop_front();
-                        names.push_front(ns);
-                        names.push_front(None);
-                    }
-                    Builtin::NsInsert => {
-                        names.pop_front();
-                        names.pop_front();
-                        names.pop_front();
-                        names.push_front(None);
-                    }
-                    Builtin::NsRemove => {
-                        let ns = names.pop_front().unwrap();
-                        names.pop_front();
-                        names.push_front(ns);
-                        names.push_front(None);
-                    }
-                    Builtin::Not | Builtin::SymbolLen | Builtin::IsCode => {
-                        names.pop_front();
-                        names.push_front(None);
-                    }
-                    Builtin::AssertEq => {
-                        names.pop_front();
-                        names.pop_front();
-                    }
-                },
-            };
-        }
+                Builtin::NsGet => {
+                    let ns = names.pop_front().unwrap();
+                    names.pop_front();
+                    names.push_front(ns);
+                    names.push_front(None);
+                }
+                Builtin::NsInsert => {
+                    names.pop_front();
+                    names.pop_front();
+                    names.pop_front();
+                    names.push_front(None);
+                }
+                Builtin::NsRemove => {
+                    let ns = names.pop_front().unwrap();
+                    names.pop_front();
+                    names.push_front(ns);
+                    names.push_front(None);
+                }
+                Builtin::Not | Builtin::SymbolLen | Builtin::IsCode => {
+                    names.pop_front();
+                    names.push_front(None);
+                }
+                Builtin::AssertEq => {
+                    names.pop_front();
+                    names.pop_front();
+                }
+            },
+        };
         self.words.push_and_get_key(Word {
             inner: w,
             span: Some(e.span),
-            names: start_names,
+            names: Some(start_names),
         })
     }
 }
@@ -253,6 +308,20 @@ pub enum Code {
         true_case: CodeIndex,
         false_case: CodeIndex,
     },
+    Bind {
+        name: String,
+        body: CodeIndex,
+    },
+    Match {
+        cases: Vec<MatchCase>,
+        els: CodeIndex,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MatchCase {
+    pub cond: Value,
+    pub body: CodeIndex,
 }
 
 impl Code {}
@@ -546,7 +615,7 @@ pub struct CodeRef<'a, 't> {
     pub idx: CodeIndex,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum CodeView<'a, 't> {
     Sentence(SentenceRef<'a, 't>),
     AndThen(SentenceRef<'a, 't>, CodeRef<'a, 't>),
@@ -554,6 +623,13 @@ pub enum CodeView<'a, 't> {
         cond: SentenceRef<'a, 't>,
         true_case: CodeRef<'a, 't>,
         false_case: CodeRef<'a, 't>,
+    },
+    Bind {
+        name: &'a str,
+        body: CodeRef<'a, 't>,
+    },
+    Match {
+        cases: Vec<MatchCaseRef<'a, 't>>,
     },
 }
 
@@ -593,6 +669,25 @@ impl<'a, 't> CodeRef<'a, 't> {
                     idx: *false_case,
                 },
             },
+            Code::Bind { name, body } => CodeView::Bind {
+                name: name.as_str(),
+                body: CodeRef {
+                    lib: self.lib,
+                    idx: *body,
+                },
+            },
+            Code::Match { cases, els } => CodeView::Match {
+                cases: cases
+                    .iter()
+                    .map(|case| MatchCaseRef {
+                        cond: &case.cond,
+                        body: CodeRef {
+                            lib: self.lib,
+                            idx: case.body,
+                        },
+                    })
+                    .collect_vec(),
+            },
         }
     }
 
@@ -616,6 +711,12 @@ impl<'a, 't> CodeRef<'a, 't> {
                     Value::Symbol("if".to_owned()).into(),
                 ])
                 .collect(),
+            CodeView::Bind { name: _, body } => body.words(),
+            CodeView::Match { cases } => {
+                let mut res = vec![];
+                // TODO
+                res
+            }
         }
     }
 
@@ -650,6 +751,12 @@ impl<'a, 't> CodeRef<'a, 't> {
     //         .compose(InnerWord::Drop(0).r#type())
     //         .compose(next_type)
     // }
+}
+
+#[derive(Clone)]
+pub struct MatchCaseRef<'a, 't> {
+    pub cond: &'a Value,
+    pub body: CodeRef<'a, 't>,
 }
 
 // fn pointer_type(lib: &Library, push: &[Value], code: CodeIndex) -> Type {
