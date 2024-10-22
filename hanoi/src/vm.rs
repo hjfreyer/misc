@@ -3,8 +3,8 @@ use typed_index_collections::TiSliceIndex;
 use crate::{
     ast,
     flat::{
-        Builtin, CodeIndex, CodeRef, CodeView, EntryView, InnerWord, Library, NamespaceRef, Value,
-        Word,
+        Builtin, CodeIndex, CodeRef, CodeView, EntryView, InnerWord, Library, Namespace2,
+        NamespaceRef, Value, Word,
     },
 };
 
@@ -115,6 +115,50 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &InnerWord) {
             };
 
             stack.push(sym.chars().count().into());
+        }
+        InnerWord::Builtin(Builtin::NsEmpty) => {
+            stack.push(Value::Namespace2(Namespace2 { items: vec![] }));
+        }
+        InnerWord::Builtin(Builtin::NsInsert) => {
+            let Some(Value::Symbol(symbol)) = stack.pop() else {
+                panic!("bad value")
+            };
+            let Some(val) = stack.pop() else {
+                panic!("bad value")
+            };
+            let Some(Value::Namespace2(mut ns)) = stack.pop() else {
+                panic!("bad value")
+            };
+            assert!(!ns.items.iter().any(|(k, v)| *k == symbol));
+            ns.items.push((symbol, val));
+
+            stack.push(Value::Namespace2(ns));
+        }
+        InnerWord::Builtin(Builtin::NsRemove) => {
+            let Some(Value::Symbol(symbol)) = stack.pop() else {
+                panic!("bad value")
+            };
+            let Some(Value::Namespace2(mut ns)) = stack.pop() else {
+                panic!("bad value")
+            };
+            let pos = ns.items.iter().position(|(k, v)| *k == symbol).unwrap();
+            let (_, val) = ns.items.remove(pos);
+
+            stack.push(val);
+            stack.push(Value::Namespace2(ns));
+        }
+        InnerWord::Builtin(Builtin::NsGet) => {
+            let Some(Value::Namespace2(mut ns)) = stack.pop() else {
+                panic!("bad value")
+            };
+            let Some(Value::Symbol(symbol)) = stack.pop() else {
+                panic!("bad value")
+            };
+            let pos = ns.items.iter().position(|(k, v)| *k == symbol).unwrap();
+            let (_, val) = ns.items[pos].clone();
+
+            stack.push(Value::Namespace2(ns));
+            stack.push(val);
         }
     }
 }

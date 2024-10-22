@@ -198,6 +198,27 @@ impl<'t> Library<'t> {
                         names.pop_front();
                         names.push_front(None);
                     }
+                    Builtin::NsEmpty => {
+                        names.push_front(None);
+                    }
+                    Builtin::NsGet => {
+                        let ns = names.pop_front().unwrap();
+                        names.pop_front();
+                        names.push_front(ns);
+                        names.push_front(None);
+                    }
+                    Builtin::NsInsert => {
+                        names.pop_front();
+                        names.pop_front();
+                        names.pop_front();
+                        names.push_front(None);
+                    }
+                    Builtin::NsRemove => {
+                        let ns = names.pop_front().unwrap();
+                        names.pop_front();
+                        names.push_front(ns);
+                        names.push_front(None);
+                    }
                     Builtin::Not | Builtin::SymbolLen | Builtin::IsCode => {
                         names.pop_front();
                         names.push_front(None);
@@ -274,6 +295,11 @@ builtins! {
     (Get, get),
     (SymbolCharAt, symbol_char_at),
     (SymbolLen, symbol_len),
+
+    (NsEmpty, ns_empty),
+    (NsInsert, ns_insert),
+    (NsGet, ns_get),
+    (NsRemove, ns_remove),
 }
 
 // impl Builtin {
@@ -378,6 +404,12 @@ pub enum Value {
     Bool(bool),
     Char(char),
     Namespace(NamespaceIndex),
+    Namespace2(Namespace2),
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Namespace2 {
+    pub items: Vec<(String, Value)>,
 }
 
 pub struct ValueView<'a, 't> {
@@ -393,6 +425,7 @@ impl<'a, 't> std::fmt::Display for ValueView<'a, 't> {
             Value::List(arg0) => todo!(),
             Value::Handle(arg0) => todo!(),
             Value::Namespace(arg0) => write!(f, "ns({})", arg0.0),
+            Value::Namespace2(arg0) => write!(f, "ns(TODO)"),
             Value::Bool(arg0) => write!(f, "{}", arg0),
             Value::Char(arg0) => write!(f, "'{}'", arg0),
             Value::Pointer(values, ptr) => {
@@ -426,6 +459,7 @@ impl Value {
             | Value::Usize(_)
             | Value::List(_)
             | Value::Namespace(_)
+            | Value::Namespace2(_)
             | Value::Bool(_)
             | Value::Char(_)
             | Value::Handle(_) => None,
