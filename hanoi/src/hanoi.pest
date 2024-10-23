@@ -4,7 +4,7 @@ COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
 
 builtin = { "#" ~ identifier }
 
-this = { "this" }
+this = _{ "this" }
 
 keyword = _{ "bind" | "match" | "if" | this }
 
@@ -40,13 +40,9 @@ str_char  =  {
 
 literal = { bool | int | char_lit | symbol }
 
-expr = { literal | func_call | identifier | builtin | this | delete | copy }
+expr = { path | literal | func_call | identifier | builtin | delete | copy }
 
-sentence_args      =  { sentence_args_list ~ "=>" }
-sentence_args_list = _{
-    "(" ~ ")"
-  | "(" ~ identifier ~ ("," ~ identifier)* ~ ")"
-}
+path = { this ~ ("." ~ identifier)* }
 
 sentence      = { sentence_body }
 sentence_body = { expr* }

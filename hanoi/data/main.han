@@ -28,7 +28,7 @@ mod csv {
                             @nextfield caller #curry #curry @exec ^yld ^char;
                         bind caller;
                         bind iternext;
-                        caller iternext @parser this #get #curry #curry @exec
+                        caller iternext this.parser #curry #curry @exec
                     }
 
                     '\n' => {
@@ -37,14 +37,14 @@ mod csv {
                                 @nextrow caller #curry #curry @exec ^yld ^char;
                         bind caller;
                         bind iternext;
-                            caller iternext @parser this #get #curry #curry @exec
+                            caller iternext this.parser #curry #curry @exec
                     }
                 } else {
                     bind next;
                         iternext next #curry char @fieldchar caller #curry #curry #curry @exec ^yld;
                     bind caller;
                     bind iternext;
-                        caller iternext @parser this #get #curry #curry @exec
+                        caller iternext this.parser #curry #curry @exec
 
                 }
             }
@@ -105,7 +105,7 @@ mod iter {
                 bind symbol;
                 bind offset;
                     caller symbol offset 1 #add 
-                    @symbol_chars this #get 
+                    this.symbol_chars 
                     #curry #curry #curry 
                     @exec
             }
@@ -114,8 +114,8 @@ mod iter {
 
 let main = {
     bind next;
-        @"h,e\n" 0 @symbol_chars @iter this #get #get #curry #curry
-            @parser @csv this #get #get #curry #curry @exec;
+        @"h,e\n" 0 this.iter.symbol_chars #curry #curry
+            this.csv.parser #curry #curry @exec;
     bind cont;
     bind char;
     bind tag;

@@ -195,7 +195,66 @@ impl<'t> Library<'t> {
         //     };
         let mut words = vec![];
         for e in sentence.exprs {
-            words.push(self.convert_expr(ns_idx, &mut names, e.into()))
+            for mut w in self.convert_expr(ns_idx, &mut names, e.into()) {
+                w.names = Some(names.clone());
+                match &w.inner {
+                    InnerWord::Push(_) | InnerWord::Copy(_) => names.push_front(None),
+                    InnerWord::Drop(idx) => {
+                        names.remove(*idx);
+                    }
+                    InnerWord::Move(idx) => {
+                        let moved = names.remove(*idx).unwrap();
+                        names.push_front(moved);
+                    }
+                    InnerWord::Send(idx) => {
+                        let moved = names.pop_front().unwrap();
+                        names.insert(*idx, moved);
+                    }
+                    InnerWord::Builtin(builtin) => match builtin {
+                        Builtin::Add
+                        | Builtin::Eq
+                        | Builtin::Curry
+                        | Builtin::Or
+                        | Builtin::And
+                        | Builtin::Get
+                        | Builtin::SymbolCharAt => {
+                            names.pop_front();
+                            names.pop_front();
+                            names.push_front(None);
+                        }
+                        Builtin::NsEmpty => {
+                            names.push_front(None);
+                        }
+                        Builtin::NsGet => {
+                            let ns = names.pop_front().unwrap();
+                            names.pop_front();
+                            names.push_front(ns);
+                            names.push_front(None);
+                        }
+                        Builtin::NsInsert => {
+                            names.pop_front();
+                            names.pop_front();
+                            names.pop_front();
+                            names.push_front(None);
+                        }
+                        Builtin::NsRemove => {
+                            let ns = names.pop_front().unwrap();
+                            names.pop_front();
+                            names.push_front(ns);
+                            names.push_front(None);
+                        }
+                        Builtin::Not | Builtin::SymbolLen | Builtin::IsCode => {
+                            names.pop_front();
+                            names.push_front(None);
+                        }
+                        Builtin::AssertEq => {
+                            names.pop_front();
+                            names.pop_front();
+                        }
+                    },
+                }
+                words.push(w)
+            }
         }
         Sentence {
             name: Some(name.to_owned()),
@@ -205,106 +264,63 @@ impl<'t> Library<'t> {
     fn convert_expr(
         &mut self,
         ns_idx: NamespaceIndex,
-        names: &mut VecDeque<Option<String>>,
+        names: &VecDeque<Option<String>>,
         e: Expression<'t>,
-    ) -> Word<'t> {
-        let start_names = names.clone();
-        let w = match e.inner {
-            InnerExpression::This => InnerWord::Push(Value::Namespace(ns_idx)),
-            InnerExpression::Literal(v) => InnerWord::Push(v),
-            InnerExpression::FunctionLike(f, idx) => match f.as_str() {
+    ) -> Vec<Word<'t>> {
+        let mkword = |inner| Word {
+            inner,
+            span: Some(e.span),
+            names: None,
+        };
+        match e.inner {
+            InnerExpression::Path(segments) => segments
+                .iter()
+                .rev()
+                .map(|s| Word {
+                    inner: InnerWord::Push(Value::Symbol(s.as_str().to_owned())),
+                    names: None,
+                    span: Some(*s),
+                })
+                .chain([mkword(InnerWord::Push(Value::Namespace(ns_idx)))])
+                .chain(
+                    segments
+                        .iter()
+                        .map(|_| mkword(InnerWord::Builtin(Builtin::Get))),
+                )
+                .collect_vec(),
+            InnerExpression::Literal(v) => vec![mkword(InnerWord::Push(v))],
+            InnerExpression::FunctionLike(f, idx) => vec![mkword(match f.as_str() {
                 "cp" => InnerWord::Copy(idx),
                 "drop" => InnerWord::Drop(idx),
                 "mv" => InnerWord::Move(idx),
                 "sd" => InnerWord::Send(idx),
                 _ => panic!("unknown reference: {}", f),
-            },
+            })],
             InnerExpression::Reference(r) => {
                 let Some(idx) = names.iter().position(|n| n.as_ref() == Some(&r)) else {
                     panic!("unknown reference: {}", r)
                 };
-                InnerWord::Move(idx)
+                vec![mkword(InnerWord::Move(idx))]
             }
             InnerExpression::Delete(r) => {
                 let Some(idx) = names.iter().position(|n| n.as_ref() == Some(&r)) else {
                     panic!("unknown reference: {}", r)
                 };
-                InnerWord::Drop(idx)
+                vec![mkword(InnerWord::Drop(idx))]
             }
             InnerExpression::Copy(r) => {
                 let Some(idx) = names.iter().position(|n| n.as_ref() == Some(&r)) else {
                     panic!("unknown reference: {}", r)
                 };
-                InnerWord::Copy(idx)
+                vec![mkword(InnerWord::Copy(idx))]
             }
             InnerExpression::Builtin(name) => {
                 if let Some(builtin) = Builtin::ALL.iter().find(|builtin| builtin.name() == name) {
-                    InnerWord::Builtin(*builtin)
+                    vec![mkword(InnerWord::Builtin(*builtin))]
                 } else {
                     panic!("unknown builtin: {}", name)
                 }
             }
-        };
-        match &w {
-            InnerWord::Push(_) | InnerWord::Copy(_) => names.push_front(None),
-            InnerWord::Drop(idx) => {
-                names.remove(*idx);
-            }
-            InnerWord::Move(idx) => {
-                let moved = names.remove(*idx).unwrap();
-                names.push_front(moved);
-            }
-            InnerWord::Send(idx) => {
-                let moved = names.pop_front().unwrap();
-                names.insert(*idx, moved);
-            }
-            InnerWord::Builtin(builtin) => match builtin {
-                Builtin::Add
-                | Builtin::Eq
-                | Builtin::Curry
-                | Builtin::Or
-                | Builtin::And
-                | Builtin::Get
-                | Builtin::SymbolCharAt => {
-                    names.pop_front();
-                    names.pop_front();
-                    names.push_front(None);
-                }
-                Builtin::NsEmpty => {
-                    names.push_front(None);
-                }
-                Builtin::NsGet => {
-                    let ns = names.pop_front().unwrap();
-                    names.pop_front();
-                    names.push_front(ns);
-                    names.push_front(None);
-                }
-                Builtin::NsInsert => {
-                    names.pop_front();
-                    names.pop_front();
-                    names.pop_front();
-                    names.push_front(None);
-                }
-                Builtin::NsRemove => {
-                    let ns = names.pop_front().unwrap();
-                    names.pop_front();
-                    names.push_front(ns);
-                    names.push_front(None);
-                }
-                Builtin::Not | Builtin::SymbolLen | Builtin::IsCode => {
-                    names.pop_front();
-                    names.push_front(None);
-                }
-                Builtin::AssertEq => {
-                    names.pop_front();
-                    names.pop_front();
-                }
-            },
-        };
-        Word {
-            inner: w,
-            span: Some(e.span),
-            names: Some(start_names),
         }
     }
 }

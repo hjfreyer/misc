@@ -146,18 +146,18 @@ pub enum DeclValue<'t> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Expression<'t> {
     pub span: Span<'t>,
-    pub inner: InnerExpression,
+    pub inner: InnerExpression<'t>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InnerExpression {
+pub enum InnerExpression<'t> {
     Literal(Value),
     Builtin(String),
     Reference(String),
+    Path(Vec<Span<'t>>),
     Delete(String),
     Copy(String),
     FunctionLike(String, usize),
-    This,
 }
 
 impl<'t> Expression<'t> {
@@ -193,7 +193,7 @@ impl<'t> Expression<'t> {
                     farg.as_str().parse().unwrap(),
                 )
             }
-            Rule::this => InnerExpression::This,
+            Rule::path => InnerExpression::Path(child.into_inner().map(ident_from_pair).collect()),
             _ => unreachable!("{:?}", child),
         };
         Self { span, inner }
