@@ -40,11 +40,16 @@ fn ident_from_pair<'t>(p: pest::iterators::Pair<'t, Rule>) -> Span<'t> {
     p.as_span()
 }
 
+fn int_from_pair(p: pest::iterators::Pair<Rule>) -> usize {
+    assert_eq!(p.as_rule(), Rule::int);
+    p.as_str().parse().unwrap()
+}
+
 fn literal_from_pair(p: pest::iterators::Pair<Rule>) -> Value {
     assert_eq!(p.as_rule(), Rule::literal);
     let literal = p.into_inner().exactly_one().unwrap();
     match literal.as_rule() {
-        Rule::int => Value::Usize(literal.as_str().parse().unwrap()),
+        Rule::int => Value::Usize(int_from_pair(literal)),
         Rule::bool => Value::Bool(literal.as_str().parse().unwrap()),
         Rule::char_lit => {
             let chr = literal.into_inner().exactly_one().unwrap();
@@ -222,6 +227,7 @@ pub enum Code<'t> {
         span: Span<'t>,
     },
     Match {
+        idx: usize,
         cases: Vec<MatchCase<'t>>,
         els: Box<Code<'t>>,
         span: Span<'t>,
@@ -253,8 +259,9 @@ impl<'t> Code<'t> {
                 }
             }
             Rule::match_block => {
-                let (cases, els) = inner.into_inner().collect_tuple().unwrap();
+                let (idx, cases, els) = inner.into_inner().collect_tuple().unwrap();
                 Code::Match {
+                    idx: int_from_pair(idx),
                     cases: cases.into_inner().map(MatchCase::from_pair).collect(),
                     els: Box::new(Code::from_pair(els)),
                     span,

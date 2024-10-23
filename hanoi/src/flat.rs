@@ -135,36 +135,30 @@ impl<'t> Library<'t> {
                 *inner,
             ),
             ast::Code::Match {
+                idx,
                 cases,
                 els,
                 span: _,
             } => {
-                todo!()
-                // let inner_names: VecDeque<Option<String>> =
-                //     names.clone().into_iter().skip(1).collect();
-                // Code::Match {
-                //     cases: cases
-                //         .into_iter()
-                //         .map(|case| {
-                //             // let body_names = case
-                //             // .args
-                //             // .iter()
-                //             // .filter_map(|arg| match &arg.inner {
-                //             //     ast::MatchArgInner::Identifier(i) => Some(Some(i.clone())),
-                //             //     ast::MatchArgInner::Literal(value) => None,
-                //             // })
-                //             // .collect();
+                let mut next_case = self.visit_code(name, ns_idx, names.clone(), *els);
 
-                //             let body =
-                //                 self.visit_code(name, ns_idx, inner_names.clone(), case.body);
-                //             MatchCase {
-                //                 cond: case.value,
-                //                 body,
-                //             }
-                //         })
-                //         .collect(),
-                //     els: self.visit_code(name, ns_idx, names, *els),
-                // }
+                for case in cases.into_iter().rev() {
+                    let body = self.visit_code(name, ns_idx, names.clone(), case.body);
+                    let cond = Sentence {
+                        name: Some(name.to_owned()),
+                        words: vec![
+                            InnerWord::Copy(idx).into(),
+                            case.value.into(),
+                            InnerWord::Builtin(Builtin::Eq).into(),
+                            Value::Pointer(vec![], body).into(),
+                            Value::Pointer(vec![], next_case).into(),
+                            Value::Symbol("if".to_owned()).into(),
+                        ],
+                    };
+
+                    next_case = self.sentences.push_and_get_key(cond);
+                }
+                next_case
             }
         }
     }

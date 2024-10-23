@@ -57,7 +57,7 @@ if_statement = { sentence ~ "if" ~ "{" ~ code ~ "}" ~ "else" ~ "{" ~ code ~ "}" 
 
 bind = { "bind" ~ identifier ~ ";" ~ code }
 
-match_block = { "match" ~ "{" ~ match_cases ~ "}" ~ "else" ~ "{" ~ code ~ "}" }
+match_block = { "match" ~ "(" ~ int ~ ")" ~ "{" ~ match_cases ~ "}" ~ "else" ~ "{" ~ code ~ "}" }
 
 match_cases = { match_case* }
 match_case  = { literal ~ "=>" ~ "{" ~ code ~ "}" }

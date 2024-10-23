@@ -9,27 +9,48 @@ mod csv {
         bind next;
         caller next #curry iter #curry @exec;
 
-        bind caller;        
-  //      match {
-    //        @eos => {}
-   //         (iternext, ',', @yield, caller) => { 
-   //             (next) => 
-   //                 iternext next #curry 
-   //                     @nextfield caller #curry #curry @exec;
-   //             (caller, iternext) => caller iternext @parser this #get #curry #curry @exec
-   //         }
-   //         (iternext, '\n', @yield, caller) => {
-   //             (next) => 
-   //                 iternext next #curry 
-   //                     @nextrow caller #curry #curry @exec;
-   //             (caller, iternext) => caller iternext @parser this #get #curry #curry @exec
-   //         }
-   //         (iternext, char, @yield, caller) => {
-   //             (next) => 
-   //                 iternext next #curry char @fieldchar caller #curry #curry #curry @exec;
-   //             (caller, iternext) => caller iternext @parser this #get #curry #curry @exec
-   //         }
-   //     } else {}
+        match (1) {
+            @eos => {
+                bind eos;
+                bind caller;
+                @end caller #curry @exec ^eos
+            }
+            @yield => {
+                bind iternext;
+                bind char;
+                bind yld;
+                bind caller;
+
+                match (2) {
+                    ',' => {
+                        bind next;
+                        iternext next #curry 
+                            @nextfield caller #curry #curry @exec ^yld ^char;
+                        bind caller;
+                        bind iternext;
+                        caller iternext @parser this #get #curry #curry @exec
+                    }
+
+                    '\n' => {
+                        bind next; 
+                            iternext next #curry 
+                                @nextrow caller #curry #curry @exec ^yld ^char;
+                        bind caller;
+                        bind iternext;
+                            caller iternext @parser this #get #curry #curry @exec
+                    }
+                } else {
+                    bind next;
+                        iternext next #curry char @fieldchar caller #curry #curry #curry @exec ^yld;
+                    bind caller;
+                    bind iternext;
+                        caller iternext @parser this #get #curry #curry @exec
+
+                }
+            }
+        } else {
+            @panic
+        }
 
     };
 }
@@ -64,11 +85,9 @@ mod iter {
         bind symbol;
         bind offset;
             *symbol #symbol_len *offset #eq if {
-
                 bind caller;
                 bind symbol;
                 bind offset;
-
                     @eos caller #curry @exec ^symbol ^offset
             } else {
                 bind caller;
@@ -95,11 +114,26 @@ mod iter {
 
 let main = {
     bind next;
-    @"h,e\n" 0 @symbol_chars @iter this #get #get #curry #curry
-        @parser @csv this #get #get #curry #curry @exec;
-    //(cont, char, tag, next) => tag @fieldchar #assert_eq char 'h' #assert_eq next cont #curry @exec;
-    //(cont, tag, next) => tag @nextfield #assert_eq next cont #curry @exec;
-    //(cont, char, tag, next) => tag @fieldchar #assert_eq char 'e' #assert_eq next cont #curry @exec;
-    //(cont, tag, next) => tag @nextrow #assert_eq next cont #curry @exec;
-    //(tag) => tag @end #assert_eq
+        @"h,e\n" 0 @symbol_chars @iter this #get #get #curry #curry
+            @parser @csv this #get #get #curry #curry @exec;
+    bind cont;
+    bind char;
+    bind tag;
+    bind next;
+        tag @fieldchar #assert_eq char 'h' #assert_eq next cont #curry @exec;
+    bind cont;
+    bind tag;
+    bind next;
+        tag @nextfield #assert_eq next cont #curry @exec;
+    bind cont;
+    bind char;
+    bind tag;
+    bind next;
+        tag @fieldchar #assert_eq char 'e' #assert_eq next cont #curry @exec;
+    bind cont;
+    bind tag;
+    bind next;
+        tag @nextrow #assert_eq next cont #curry @exec;
+    bind tag;
+        tag @end #assert_eq
 };
