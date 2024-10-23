@@ -2,15 +2,14 @@
 
 mod ast;
 mod flat;
-
 mod vm;
 
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use flat::{
-    Builtin, Code, CodeIndex, CodeRef, CodeView, Entry, EntryView, InnerWord, Library, Namespace,
-    NamespaceIndex, SentenceIndex, SentenceRef, Value, ValueView, Word, WordIndex,
+    Builtin, Entry, InnerWord, Library, Namespace, NamespaceIndex, SentenceIndex, Value, ValueView,
+    Word,
 };
 use itertools::Itertools;
 use ratatui::{
@@ -129,12 +128,6 @@ impl<'t> Debugger<'t> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Styles {
-    pub codes: TiVec<CodeIndex, Style>,
-    pub words: TiVec<WordIndex, Style>,
-}
-
 fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Result<()> {
     loop {
         terminal.draw(|frame| {
@@ -182,10 +175,15 @@ fn debug(file: PathBuf) -> anyhow::Result<()> {
 
     let lib = Library::from_ast(ast.namespace);
 
-    let EntryView::Code(main) = lib.root_namespace().get("main").unwrap() else {
+    let Entry::Value(Value::Pointer(_, main)) = lib.root_namespace().get("main").unwrap() else {
         panic!()
     };
-    let prog = main.words().into_iter().rev().collect();
+    let prog = lib.sentences[*main]
+        .words
+        .clone()
+        .into_iter()
+        .rev()
+        .collect();
 
     let mut vm = Vm {
         lib,
@@ -230,7 +228,7 @@ impl<'a, 't> Iterator for IterReader<'a, 't> {
                 let item = self.vm.stack.pop().unwrap();
 
                 self.vm.prog = vec![
-                    Value::Pointer(vec![], CodeIndex::TRAP).into(),
+                    Value::Pointer(vec![], SentenceIndex::TRAP).into(),
                     resume.into(),
                     Value::Symbol("exec".to_owned()).into(),
                 ];
@@ -253,10 +251,10 @@ fn test(file: PathBuf) -> anyhow::Result<()> {
     let lib = Library::from_ast(ast.namespace);
 
     let mut prog = vec![
-        Value::Pointer(vec![], CodeIndex::TRAP).into(),
+        Value::Pointer(vec![], SentenceIndex::TRAP).into(),
         Value::Symbol("enumerate".to_string()).into(),
         Value::Symbol("tests".to_string()).into(),
-        Value::Namespace(lib.root_namespace().idx).into(),
+        Value::Namespace(lib.namespaces.first_key().unwrap()).into(),
         InnerWord::Builtin(Builtin::Get).into(),
         InnerWord::Builtin(Builtin::Get).into(),
         Value::Symbol("exec".to_string()).into(),
@@ -276,11 +274,11 @@ fn test(file: PathBuf) -> anyhow::Result<()> {
         println!("Running test: {}", tc_name);
 
         vm.prog = vec![
-            Value::Pointer(vec![], CodeIndex::TRAP).into(),
+            Value::Pointer(vec![], SentenceIndex::TRAP).into(),
             Value::Symbol(tc_name).into(),
             Value::Symbol("run".to_string()).into(),
             Value::Symbol("tests".to_string()).into(),
-            Value::Namespace(vm.lib.root_namespace().idx).into(),
+            Value::Namespace(vm.lib.namespaces.first_key().unwrap()).into(),
             InnerWord::Builtin(Builtin::Get).into(),
             InnerWord::Builtin(Builtin::Get).into(),
             Value::Symbol("exec".to_string()).into(),

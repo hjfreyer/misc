@@ -2,10 +2,7 @@ use typed_index_collections::TiSliceIndex;
 
 use crate::{
     ast,
-    flat::{
-        Builtin, CodeIndex, CodeRef, CodeView, EntryView, InnerWord, Library, Namespace2,
-        NamespaceRef, Value, Word,
-    },
+    flat::{Builtin, Entry, InnerWord, Library, Namespace2, SentenceIndex, Value, Word},
 };
 
 fn eval(lib: &Library, stack: &mut Vec<Value>, w: &InnerWord) {
@@ -25,6 +22,10 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &InnerWord) {
         InnerWord::Move(idx) => {
             let val = stack.remove(stack.len() - idx - 1);
             stack.push(val);
+        }
+        InnerWord::Send(idx) => {
+            let val = stack.pop().unwrap();
+            stack.insert(stack.len() - idx, val);
         }
         InnerWord::Drop(idx) => {
             stack.remove(stack.len() - idx - 1);
@@ -92,11 +93,11 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &InnerWord) {
             let Some(Value::Symbol(name)) = stack.pop() else {
                 panic!("bad value")
             };
-            let ns = NamespaceRef { lib, idx: ns_idx };
+            let ns = &lib.namespaces[ns_idx];
 
             stack.push(match ns.get(&name).unwrap() {
-                crate::flat::EntryView::Code(code) => Value::Pointer(vec![], code.idx),
-                crate::flat::EntryView::Namespace(ns) => Value::Namespace(ns.idx),
+                crate::flat::Entry::Value(v) => v.clone(),
+                crate::flat::Entry::Namespace(ns) => Value::Namespace(*ns),
             });
         }
         InnerWord::Builtin(Builtin::SymbolCharAt) => {
@@ -241,7 +242,7 @@ fn control_flow<'t>(
         "exec" => {
             let (push, code) = stack.pop().unwrap().into_code(lib).unwrap();
             assert_eq!(stack, &vec![]);
-            if code == CodeIndex::TRAP {
+            if code == SentenceIndex::TRAP {
                 None
             } else {
                 Some((push, code))
@@ -253,7 +254,7 @@ fn control_flow<'t>(
     }?;
 
     stack.extend(push);
-    Some(CodeRef { lib, idx: next }.words())
+    Some(lib.sentences[next].words.clone())
 }
 
 pub struct Vm<'t> {
@@ -267,11 +268,17 @@ impl<'t> Vm<'t> {
     pub fn new(ast: ast::Namespace<'t>) -> Self {
         let lib = Library::from_ast(ast);
 
-        let EntryView::Code(main) = lib.root_namespace().get("main").unwrap() else {
+        let Entry::Value(Value::Pointer(_, main)) = lib.root_namespace().get("main").unwrap()
+        else {
             panic!("not code")
         };
 
-        let prog = main.words().into_iter().rev().collect();
+        let prog = lib.sentences[*main]
+            .words
+            .clone()
+            .into_iter()
+            .rev()
+            .collect();
         Vm {
             lib,
             prog,

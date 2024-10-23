@@ -10,8 +10,8 @@ mod csv {
         caller next #curry iter #curry @exec;
 
         bind caller;        
-        match {
-            @eos => {}
+  //      match {
+    //        @eos => {}
    //         (iternext, ',', @yield, caller) => { 
    //             (next) => 
    //                 iternext next #curry 
@@ -29,7 +29,7 @@ mod csv {
    //                 iternext next #curry char @fieldchar caller #curry #curry #curry @exec;
    //             (caller, iternext) => caller iternext @parser this #get #curry #curry @exec
    //         }
-        } else {}
+   //     } else {}
 
     };
 }
