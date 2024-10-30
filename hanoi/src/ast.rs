@@ -124,7 +124,7 @@ pub struct Decl<'t> {
 }
 
 impl<'t> Decl<'t> {
-    fn from_pair(mut p: Pair<'t, Rule>) -> Decl<'t> {
+    fn from_pair(p: Pair<'t, Rule>) -> Decl<'t> {
         assert_eq!(p.as_rule(), Rule::decl);
         let (ident, code) = p.into_inner().collect_tuple().unwrap();
         assert_eq!(ident.as_rule(), Rule::identifier);

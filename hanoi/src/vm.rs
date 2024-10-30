@@ -152,7 +152,7 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &InnerWord) {
             let Some(Value::Symbol(symbol)) = stack.pop() else {
                 panic!("bad value")
             };
-            let Some(Value::Namespace2(mut ns)) = stack.pop() else {
+            let Some(Value::Namespace2(ns)) = stack.pop() else {
                 panic!("bad value")
             };
             let pos = ns.items.iter().position(|(k, v)| *k == symbol).unwrap();

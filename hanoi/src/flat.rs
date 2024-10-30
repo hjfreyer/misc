@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     usize,
 };
 
@@ -87,7 +87,7 @@ impl<'t> Library<'t> {
         match code {
             ast::Code::Sentence(sentence) => self.visit_sentence(name, ns_idx, names, sentence),
             ast::Code::AndThen(sentence, code) => {
-                let mut init = self.convert_sentence(name, ns_idx, names, sentence);
+                let init = self.convert_sentence(name, ns_idx, names, sentence);
                 let and_then = self.visit_code(name, ns_idx, VecDeque::new(), *code);
 
                 self.sentences.push_and_get_key(Sentence {
@@ -167,7 +167,7 @@ impl<'t> Library<'t> {
         &mut self,
         name: &str,
         ns_idx: NamespaceIndex,
-        mut names: VecDeque<Option<String>>,
+        names: VecDeque<Option<String>>,
         sentence: ast::Sentence<'t>,
     ) -> SentenceIndex {
         let s = self.convert_sentence(name, ns_idx, names, sentence);
@@ -595,8 +595,8 @@ impl Type {
 
 #[cfg(test)]
 mod tests {
-    use pest::Span;
+    
 
-    use super::*;
-    use crate::ast;
+    
+    
 }

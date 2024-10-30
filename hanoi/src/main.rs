@@ -9,19 +9,9 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use flat::{
-    Builtin, Entry, InnerWord, Library, Namespace, NamespaceIndex, SentenceIndex, Value, ValueView,
-    Word,
+    Builtin, Entry, InnerWord, Library, SentenceIndex, Value,
 };
 use itertools::Itertools;
-use ratatui::{
-    crossterm::event::{self, KeyEventKind},
-    layout::{Constraint, Layout},
-    style::{Style, Stylize},
-    text::{Line, Span, Text},
-    widgets::{self, List, ListItem, ListState, Paragraph, Row, ScrollbarState, Table, TableState},
-    DefaultTerminal, Frame,
-};
-use typed_index_collections::TiVec;
 use vm::{Arena, Vm};
 
 #[derive(Parser, Debug)]
@@ -54,7 +44,7 @@ fn debug(file: PathBuf) -> anyhow::Result<()> {
         .rev()
         .collect();
 
-    let mut vm = Vm {
+    let vm = Vm {
         lib,
         prog,
         stack: vec![],
@@ -175,7 +165,7 @@ fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use flat::{Judgement, Type};
+    
 
     use super::*;
 
