@@ -8,11 +8,9 @@ mod vm;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use flat::{
-    Builtin, Entry, InnerWord, Library, SentenceIndex, Value,
-};
+use flat::{Builtin, Entry, InnerWord, Library, SentenceIndex, Value};
 use itertools::Itertools;
-use vm::{Arena, Vm};
+use vm::Vm;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -32,24 +30,7 @@ fn debug(file: PathBuf) -> anyhow::Result<()> {
 
     let ast = ast::Module::from_str(&code).unwrap();
 
-    let lib = Library::from_ast(ast.namespace);
-
-    let Entry::Value(Value::Pointer(_, main)) = lib.root_namespace().get("main").unwrap() else {
-        panic!()
-    };
-    let prog = lib.sentences[*main]
-        .words
-        .clone()
-        .into_iter()
-        .rev()
-        .collect();
-
-    let vm = Vm {
-        lib,
-        prog,
-        stack: vec![],
-        arena: Arena { buffers: vec![] },
-    };
+    let vm = Vm::new(ast.namespace);
 
     let debugger = debugger::Debugger::new(&code, vm);
 
@@ -61,111 +42,113 @@ fn debug(file: PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-struct IterReader<'a, 't> {
-    vm: &'a mut Vm<'t>,
-}
+// struct IterReader<'a, 't> {
+//     vm: &'a mut Vm<'t>,
+// }
 
-impl<'a, 't> Iterator for IterReader<'a, 't> {
-    type Item = Value;
+// impl<'a, 't> Iterator for IterReader<'a, 't> {
+//     type Item = Value;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.vm.step() {}
+//     fn next(&mut self) -> Option<Self::Item> {
+//         while self.vm.step() {}
 
-        let Value::Symbol(result) = self.vm.stack.pop().unwrap() else {
-            panic!();
-        };
+//         let Value::Symbol(result) = self.vm.stack.pop().unwrap() else {
+//             panic!();
+//         };
 
-        match result.as_str() {
-            "yield" => {
-                let resume = self.vm.stack.pop().unwrap();
+//         match result.as_str() {
+//             "yield" => {
+//                 let resume = self.vm.stack.pop().unwrap();
 
-                let item = self.vm.stack.pop().unwrap();
+//                 let item = self.vm.stack.pop().unwrap();
 
-                self.vm.prog = vec![
-                    Value::Pointer(vec![], SentenceIndex::TRAP).into(),
-                    resume.into(),
-                    Value::Symbol("exec".to_owned()).into(),
-                ];
+//                 self.vm.prog = vec![
+//                     Value::Pointer(vec![], SentenceIndex::TRAP).into(),
+//                     resume.into(),
+//                     Value::Symbol("exec".to_owned()).into(),
+//                 ];
 
-                self.vm.prog.reverse();
+//                 self.vm.prog.reverse();
 
-                Some(item)
-            }
-            "eos" => None,
-            _ => panic!(),
-        }
-    }
-}
+//                 Some(item)
+//             }
+//             "eos" => None,
+//             _ => panic!(),
+//         }
+//     }
+// }
 
-fn test(file: PathBuf) -> anyhow::Result<()> {
-    let code = std::fs::read_to_string(&file)?;
+// fn test(file: PathBuf) -> anyhow::Result<()> {
+//     let code = std::fs::read_to_string(&file)?;
 
-    let ast = ast::Module::from_str(&code).unwrap();
+//     let ast = ast::Module::from_str(&code).unwrap();
 
-    let lib = Library::from_ast(ast.namespace);
+//     let lib = Library::from_ast(ast.namespace);
 
-    let mut prog = vec![
-        Value::Pointer(vec![], SentenceIndex::TRAP).into(),
-        Value::Symbol("enumerate".to_string()).into(),
-        Value::Symbol("tests".to_string()).into(),
-        Value::Namespace(lib.namespaces.first_key().unwrap()).into(),
-        InnerWord::Builtin(Builtin::Get).into(),
-        InnerWord::Builtin(Builtin::Get).into(),
-        Value::Symbol("exec".to_string()).into(),
-    ];
-    prog.reverse();
+//     let mut prog = vec![
+//         Value::Pointer(vec![], SentenceIndex::TRAP).into(),
+//         Value::Symbol("enumerate".to_string()).into(),
+//         Value::Symbol("tests".to_string()).into(),
+//         Value::Namespace(lib.namespaces.first_key().unwrap()).into(),
+//         InnerWord::Builtin(Builtin::Get).into(),
+//         InnerWord::Builtin(Builtin::Get).into(),
+//         Value::Symbol("exec".to_string()).into(),
+//     ];
+//     prog.reverse();
 
-    let mut vm = Vm {
-        lib,
-        prog,
-        stack: vec![],
-        arena: Arena { buffers: vec![] },
-    };
+//     let mut vm = Vm {
+//         lib,
+//         prog,
+//         stack: vec![],
+//         arena: Arena { buffers: vec![] },
+//     };
 
-    for tc in (IterReader { vm: &mut vm }).collect_vec() {
-        let Value::Symbol(tc_name) = tc else { panic!() };
+//     for tc in (IterReader { vm: &mut vm }).collect_vec() {
+//         let Value::Symbol(tc_name) = tc else { panic!() };
 
-        println!("Running test: {}", tc_name);
+//         println!("Running test: {}", tc_name);
 
-        vm.prog = vec![
-            Value::Pointer(vec![], SentenceIndex::TRAP).into(),
-            Value::Symbol(tc_name).into(),
-            Value::Symbol("run".to_string()).into(),
-            Value::Symbol("tests".to_string()).into(),
-            Value::Namespace(vm.lib.namespaces.first_key().unwrap()).into(),
-            InnerWord::Builtin(Builtin::Get).into(),
-            InnerWord::Builtin(Builtin::Get).into(),
-            Value::Symbol("exec".to_string()).into(),
-        ];
-        vm.prog.reverse();
-        while vm.step() {}
+//         vm.prog = vec![
+//             Value::Pointer(vec![], SentenceIndex::TRAP).into(),
+//             Value::Symbol(tc_name).into(),
+//             Value::Symbol("run".to_string()).into(),
+//             Value::Symbol("tests".to_string()).into(),
+//             Value::Namespace(vm.lib.namespaces.first_key().unwrap()).into(),
+//             InnerWord::Builtin(Builtin::Get).into(),
+//             InnerWord::Builtin(Builtin::Get).into(),
+//             Value::Symbol("exec".to_string()).into(),
+//         ];
+//         vm.prog.reverse();
+//         while vm.step() {}
 
-        let Value::Symbol(result) = vm.stack.pop().unwrap() else {
-            panic!()
-        };
+//         let Value::Symbol(result) = vm.stack.pop().unwrap() else {
+//             panic!()
+//         };
 
-        match result.as_str() {
-            "pass" => println!("PASS!"),
-            "fail" => println!("FAIL!"),
-            _ => panic!(),
-        }
-    }
+//         match result.as_str() {
+//             "pass" => println!("PASS!"),
+//             "fail" => println!("FAIL!"),
+//             _ => panic!(),
+//         }
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.command {
         Commands::Debug { file } => debug(file),
-        Commands::Test { file } => test(file),
+        Commands::Test { file } => {
+            //test(file),
+            todo!()
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    
 
     use super::*;
 

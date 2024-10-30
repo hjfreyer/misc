@@ -27,7 +27,7 @@ impl<'t> Debugger<'t> {
             return false;
         }
 
-        if let Some(word) = self.vm.prog.last() {
+        if let Some(word) = self.vm.current_word() {
             if let Some(span) = &word.span {
                 let (line, _) = span.start_pos().line_col();
                 self.code_scroll = (line as u16).saturating_sub(10);
@@ -39,7 +39,7 @@ impl<'t> Debugger<'t> {
     fn code(&self) -> Paragraph {
         let text = if let Some(Word {
             span: Some(span), ..
-        }) = self.vm.prog.last()
+        }) = self.vm.current_word()
         {
             let mut res = Text::raw("");
             let mut iter = self.code[..span.start()].lines();
@@ -71,8 +71,7 @@ impl<'t> Debugger<'t> {
     fn stack(&self) -> Table<'static> {
         let names = self
             .vm
-            .prog
-            .last()
+            .current_word()
             .and_then(|w| w.names.clone())
             .unwrap_or_else(|| self.vm.stack.iter().map(|_| None).collect());
 

@@ -164,21 +164,7 @@ fn eval(lib: &Library, stack: &mut Vec<Value>, w: &InnerWord) {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Arena {
-    pub buffers: Vec<Buffer>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Buffer {
-    mem: Vec<usize>,
-}
-
-fn control_flow<'t>(
-    lib: &Library<'t>,
-    stack: &mut Vec<Value>,
-    arena: &mut Arena,
-) -> Option<Vec<Word<'t>>> {
+fn control_flow<'t>(lib: &Library<'t>, stack: &mut Vec<Value>) -> Option<SentenceIndex> {
     let Some(Value::Symbol(op)) = stack.pop() else {
         panic!("bad value")
     };
@@ -254,47 +240,57 @@ fn control_flow<'t>(
     }?;
 
     stack.extend(push);
-    Some(lib.sentences[next].words.clone())
+    Some(next)
 }
 
 pub struct Vm<'t> {
     pub lib: Library<'t>,
-    pub prog: Vec<Word<'t>>,
+    pub pc: ProgramCounter,
     pub stack: Vec<Value>,
-    pub arena: Arena,
+}
+
+pub struct ProgramCounter {
+    pub sentence_idx: SentenceIndex,
+    pub word_idx: usize,
 }
 
 impl<'t> Vm<'t> {
     pub fn new(ast: ast::Namespace<'t>) -> Self {
         let lib = Library::from_ast(ast);
 
-        let Entry::Value(Value::Pointer(_, main)) = lib.root_namespace().get("main").unwrap()
+        let &Entry::Value(Value::Pointer(_, main)) = lib.root_namespace().get("main").unwrap()
         else {
             panic!("not code")
         };
 
-        let prog = lib.sentences[*main]
-            .words
-            .clone()
-            .into_iter()
-            .rev()
-            .collect();
         Vm {
             lib,
-            prog,
+            pc: ProgramCounter {
+                sentence_idx: main,
+                word_idx: 0,
+            },
             stack: vec![],
-            arena: Arena { buffers: vec![] },
         }
     }
 
+    pub fn current_word(&self) -> Option<&Word<'t>> {
+        self.lib.sentences[self.pc.sentence_idx]
+            .words
+            .get(self.pc.word_idx)
+    }
+
     pub fn step(&mut self) -> bool {
-        if let Some(word) = self.prog.pop() {
+        let sentence = &self.lib.sentences[self.pc.sentence_idx];
+
+        if let Some(word) = sentence.words.get(self.pc.word_idx) {
             // eprintln!("word: {:?}", word);
             eval(&self.lib, &mut self.stack, &word.inner);
+            self.pc.word_idx += 1;
             true
         } else {
-            if let Some(new_prog) = control_flow(&self.lib, &mut self.stack, &mut self.arena) {
-                self.prog = new_prog.into_iter().rev().collect();
+            if let Some(new_prog) = control_flow(&self.lib, &mut self.stack) {
+                self.pc.sentence_idx = new_prog;
+                self.pc.word_idx = 0;
                 true
             } else {
                 false

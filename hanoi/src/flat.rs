@@ -1,7 +1,4 @@
-use std::{
-    collections::VecDeque,
-    usize,
-};
+use std::{collections::VecDeque, usize};
 
 use derive_more::derive::{From, Into};
 use itertools::Itertools;
@@ -594,9 +591,4 @@ impl Type {
 }
 
 #[cfg(test)]
-mod tests {
-    
-
-    
-    
-}
+mod tests {}
