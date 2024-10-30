@@ -80,33 +80,115 @@ mod csv {
 //}
 
 mod iter {
+    let symbol_len = {
+        bind caller;
+        bind symbol;
+            symbol #symbol_len caller #curry @exec
+    };
+
+    let symbol_char_at = {
+        bind caller;
+        bind symbol;
+        bind offset;
+            symbol offset #symbol_char_at caller #curry @exec
+    };
+
+    let eq = {
+        bind caller;
+        bind a;
+        bind b;
+        a b #eq caller #curry @exec
+    };
+
+    let add = {
+        bind caller;
+        bind a;
+        bind b;
+            a b #add caller #curry @exec
+    };
+
     let symbol_chars = {
         bind caller;
         bind symbol;
         bind offset;
-            *symbol #symbol_len *offset #eq if {
-                bind caller;
-                bind symbol;
-                bind offset;
-                    @eos caller #curry @exec ^symbol ^offset
+        bind next;
+            #sd(3)
+            #ns_empty 
+                @offset #mv(2) #ns_insert
+                @symbol #mv(2) #ns_insert
+                @caller #mv(2) #ns_insert
+            @symbol #ns_get #mv(1)
+            this.symbol_len #mv(1)
+            #mv(3) #curry #sd(2)
+            #curry #curry
+            @exec;
+        bind len;
+        bind ns;
+        bind next;
+            #sd(2)
+            @len #mv(2) #ns_insert
+            @len #ns_remove #mv(1) 
+            @offset #ns_get #mv(1)
+            this.eq #mv(1)
+            #mv(4) #curry #sd(3)
+            #curry #curry #curry
+            @exec;
+        bind are_eq;
+        bind ns;
+            @are_eq #mv(2) #ns_insert
+            @are_eq #ns_get if {
+                bind ns;
+                    @eos #mv(1) 
+                    @caller #ns_remove #mv(1)
+                    #drop(0)
+                    #curry
+                    @exec
             } else {
-                bind caller;
-                bind symbol;
-                bind offset;
+                bind ns;
                 bind next;
-                    *symbol *offset next #curry #curry
-                    symbol offset #symbol_char_at
-                    @yield
-                    caller
+                    #sd(1)
+                    @symbol #ns_get #mv(1) 
+                    @offset #ns_get #mv(1) 
+                    this.symbol_char_at #mv(1)
+                    #mv(4) #curry #sd(3) 
+                    #curry #curry #curry
+                    @exec;
+                bind char_at;
+                bind ns;
+                bind next;
+                    #sd(2)
+                    @char_at #mv(2) #ns_insert
+
+                    @char_at #ns_get #mv(1)
+                    @yield #mv(1)
+                    @caller #ns_remove #mv(1)
+                    #mv(4) #curry #sd(3)
                     #curry #curry #curry
                     @exec;
 
                 bind caller;
-                bind symbol;
-                bind offset;
-                    caller symbol offset 1 #add 
-                    this.symbol_chars 
-                    #curry #curry #curry 
+                bind ns;
+                bind next;
+                    #sd(2)
+                    @caller #mv(2) #ns_insert
+
+                    @offset #ns_remove #mv(1)
+                    1 #mv(1)
+                    this.add #mv(1)
+                    #mv(4) #curry #sd(3)
+                    #curry #curry #curry
+                    @exec;
+
+                bind sum;
+                bind ns;
+                    @sum #mv(2) #ns_insert
+
+                    @caller #ns_remove #mv(1)
+                    @symbol #ns_remove #mv(1)
+                    @sum #ns_remove #mv(1)
+                    this.symbol_chars #mv(1)
+                    #drop(0)
+                    #curry #curry #curry
                     @exec
             }
     };
