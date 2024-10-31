@@ -7,19 +7,30 @@ use typed_index_collections::TiSliceIndex;
 
 use crate::{
     ast,
-    flat::{Builtin, Entry, InnerWord, Library, Namespace2, SentenceIndex, Value, Word},
+    flat::{Builtin, Closure, Entry, InnerWord, Library, Namespace2, SentenceIndex, Value, Word},
 };
 
-#[derive(Error, Debug)]
-#[error("at {span:?}: {source}")]
+#[derive(Debug)]
 pub struct EvalError<'t> {
     pub span: Option<Span<'t>>,
-    #[source]
     pub source: anyhow::Error,
 }
+
+impl<'t> std::fmt::Display for EvalError<'t> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(span) = &self.span {
+            write!(f, "at {:?}: ", span.start_pos())?;
+        } else {
+            write!(f, "at <unknown location>: ")?;
+        }
+        write!(f, "{}", self.source)
+    }
+}
+impl<'t> std::error::Error for EvalError<'t> {}
+
 macro_rules! eval_bail {
     ($span:expr, $fmt:expr) => {
-        return Err(EvalError { span: $span, source: anyhow::anyhow!($fmt) })
+       return Err(EvalError { span: $span, source: anyhow::anyhow!($fmt) })
     };
 
     ($span:expr, $fmt:expr, $($arg:tt)*) => {
@@ -48,7 +59,7 @@ fn eval<'t>(lib: &Library, stack: &mut VecDeque<Value>, w: &Word<'t>) -> Result<
         }
         InnerWord::Move(idx) => {
             let Some(val) = stack.remove(*idx) else {
-                eval_bail!(w.span, "bad value")
+                eval_bail!(w.span, "attempt to move out-of-range index: {}", idx)
             };
             stack.push_front(val);
             Ok(())
@@ -96,14 +107,14 @@ fn eval<'t>(lib: &Library, stack: &mut VecDeque<Value>, w: &Word<'t>) -> Result<
             Ok(())
         }
         InnerWord::Builtin(Builtin::Curry) => {
-            let Some(Value::Pointer(mut closure, code)) = stack.pop_front() else {
+            let Some(Value::Pointer(Closure(mut closure, code))) = stack.pop_front() else {
                 eval_bail!(w.span, "bad value")
             };
             let Some(val) = stack.pop_front() else {
                 eval_bail!(w.span, "bad value")
             };
             closure.insert(0, val);
-            stack.push_front(Value::Pointer(closure, code));
+            stack.push_front(Value::Pointer(Closure(closure, code)));
             Ok(())
         }
         InnerWord::Builtin(Builtin::And) => {
@@ -134,15 +145,29 @@ fn eval<'t>(lib: &Library, stack: &mut VecDeque<Value>, w: &Word<'t>) -> Result<
             Ok(())
         }
         InnerWord::Builtin(Builtin::Get) => {
-            let Some(Value::Namespace(ns_idx)) = stack.pop_front() else {
-                eval_bail!(w.span, "bad value")
+            let ns_idx = match stack.pop_front() {
+                Some(Value::Namespace(ns_idx)) => ns_idx,
+                other => {
+                    eval_bail!(w.span, "attempted to get from non-namespace: {:?}", other)
+                }
             };
-            let Some(Value::Symbol(name)) = stack.pop_front() else {
-                eval_bail!(w.span, "bad value")
+            let name = match stack.pop_front() {
+                Some(Value::Symbol(name)) => name,
+                other => {
+                    eval_bail!(
+                        w.span,
+                        "attempted to index into namespace with non-symbol: {:?}",
+                        other
+                    )
+                }
             };
             let ns = &lib.namespaces[ns_idx];
 
-            stack.push_front(match ns.get(&name).unwrap() {
+            let Some(entry) = ns.get(&name) else {
+                eval_bail!(w.span, "unknown symbol: {}", name)
+            };
+
+            stack.push_front(match entry {
                 crate::flat::Entry::Value(v) => v.clone(),
                 crate::flat::Entry::Namespace(ns) => Value::Namespace(*ns),
             });
@@ -221,11 +246,11 @@ fn eval<'t>(lib: &Library, stack: &mut VecDeque<Value>, w: &Word<'t>) -> Result<
 fn control_flow<'t>(
     lib: &Library<'t>,
     stack: &mut VecDeque<Value>,
-) -> Result<Option<SentenceIndex>, EvalError<'t>> {
+) -> Result<Closure, EvalError<'t>> {
     let Some(Value::Symbol(op)) = stack.pop_front() else {
         panic!("bad value")
     };
-    let res = match op.as_str() {
+    match op.as_str() {
         // "malloc" => {
         //     let Some(Value::Usize(size)) = stack.pop_front() else {
         //         panic!()
@@ -271,38 +296,31 @@ fn control_flow<'t>(
         //     Some(next.into_words())
         // }
         "if" => {
-            let false_case = stack.pop_front().unwrap().into_code(lib).unwrap();
-            let true_case = stack.pop_front().unwrap().into_code(lib).unwrap();
+            let Some(Value::Pointer(false_case)) = stack.pop_front() else {
+                panic!("bad value")
+            };
+            let Some(Value::Pointer(true_case)) = stack.pop_front() else {
+                panic!("bad value")
+            };
             let Some(Value::Bool(cond)) = stack.pop_front() else {
                 panic!()
             };
             if cond {
-                Some(true_case)
+                Ok(true_case)
             } else {
-                Some(false_case)
+                Ok(false_case)
             }
         }
         "exec" => {
-            let (push, code) = stack.pop_front().unwrap().into_code(lib).unwrap();
+            let Some(Value::Pointer(next)) = stack.pop_front() else {
+                panic!("bad value")
+            };
+
             assert_eq!(stack, &vec![]);
-            if code == SentenceIndex::TRAP {
-                None
-            } else {
-                Some((push, code))
-            }
+            Ok(next)
         }
-        "assert" => None,
         // "halt" => None,
         unk => panic!("unknown symbol: {}", unk),
-    };
-
-    if let Some((push, next)) = res {
-        for v in push.into_iter() {
-            stack.push_front(v);
-        }
-        Ok(Some(next))
-    } else {
-        Ok(None)
     }
 }
 
@@ -312,16 +330,23 @@ pub struct Vm<'t> {
     pub stack: VecDeque<Value>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProgramCounter {
     pub sentence_idx: SentenceIndex,
     pub word_idx: usize,
+}
+
+pub enum StepResult {
+    Trap(Vec<Value>),
+    Continue,
 }
 
 impl<'t> Vm<'t> {
     pub fn new(ast: ast::Namespace<'t>) -> Self {
         let lib = Library::from_ast(ast);
 
-        let &Entry::Value(Value::Pointer(_, main)) = lib.root_namespace().get("main").unwrap()
+        let &Entry::Value(Value::Pointer(Closure(_, main))) =
+            lib.root_namespace().get("main").unwrap()
         else {
             panic!("not code")
         };
@@ -342,21 +367,38 @@ impl<'t> Vm<'t> {
             .get(self.pc.word_idx)
     }
 
-    pub fn step(&mut self) -> Result<bool, EvalError<'t>> {
+    pub fn jump_to(&mut self, Closure(closure, sentence_idx): Closure) {
+        for v in closure {
+            self.stack.push_front(v);
+        }
+        self.pc.sentence_idx = sentence_idx;
+        self.pc.word_idx = 0;
+    }
+
+    pub fn run_to_trap(&mut self) -> Result<Vec<Value>, EvalError<'t>> {
+        loop {
+            match self.step()? {
+                StepResult::Continue => {}
+                StepResult::Trap(t) => return Ok(t),
+            }
+        }
+    }
+
+    pub fn step(&mut self) -> Result<StepResult, EvalError<'t>> {
         let sentence = &self.lib.sentences[self.pc.sentence_idx];
 
         if let Some(word) = sentence.words.get(self.pc.word_idx) {
-            // eprintln!("word: {:?}", word);
             eval(&self.lib, &mut self.stack, &word)?;
             self.pc.word_idx += 1;
-            Ok(true)
+            Ok(StepResult::Continue)
         } else {
-            if let Some(new_prog) = control_flow(&self.lib, &mut self.stack)? {
-                self.pc.sentence_idx = new_prog;
-                self.pc.word_idx = 0;
-                Ok(true)
+            let next = control_flow(&self.lib, &mut self.stack)?;
+
+            if next.1 == SentenceIndex::TRAP {
+                Ok(StepResult::Trap(next.0))
             } else {
-                Ok(false)
+                self.jump_to(next);
+                Ok(StepResult::Continue)
             }
         }
     }

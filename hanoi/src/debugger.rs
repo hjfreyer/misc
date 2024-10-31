@@ -10,7 +10,7 @@ use ratatui::{
 
 use crate::{
     flat::{ValueView, Word},
-    vm::{EvalError, Vm},
+    vm::{EvalError, StepResult, Vm},
 };
 
 pub struct Debugger<'t> {
@@ -22,18 +22,17 @@ pub struct Debugger<'t> {
 }
 
 impl<'t> Debugger<'t> {
-    fn step(&mut self) -> Result<bool, EvalError<'t>> {
-        if !self.vm.step()? {
-            return Ok(false);
-        }
-
-        if let Some(word) = self.vm.current_word() {
-            if let Some(span) = &word.span {
-                let (line, _) = span.start_pos().line_col();
-                self.code_scroll = (line as u16).saturating_sub(10);
+    fn step(&mut self) -> Result<StepResult, EvalError<'t>> {
+        let step = self.vm.step()?;
+        if let StepResult::Continue = step {
+            if let Some(word) = self.vm.current_word() {
+                if let Some(span) = &word.span {
+                    let (line, _) = span.start_pos().line_col();
+                    self.code_scroll = (line as u16).saturating_sub(10);
+                }
             }
         }
-        Ok(true)
+        Ok(step)
     }
 
     fn code(&self) -> Paragraph {

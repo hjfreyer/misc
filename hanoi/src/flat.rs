@@ -66,7 +66,7 @@ impl<'t> Library<'t> {
                     let sentence_idx = self.visit_code(&decl.name, ns_idx, VecDeque::new(), code);
                     self.namespaces[ns_idx].0.push((
                         decl.name,
-                        Entry::Value(Value::Pointer(vec![], sentence_idx)),
+                        Entry::Value(Value::Pointer(Closure(vec![], sentence_idx))),
                     ));
                 }
             }
@@ -90,7 +90,7 @@ impl<'t> Library<'t> {
                 self.sentences.push_and_get_key(Sentence {
                     name: init.name,
                     words: std::iter::once(
-                        InnerWord::Push(Value::Pointer(vec![], and_then)).into(),
+                        InnerWord::Push(Value::Pointer(Closure(vec![], and_then))).into(),
                     )
                     .chain(init.words.into_iter())
                     .collect(),
@@ -111,8 +111,8 @@ impl<'t> Library<'t> {
                         .words
                         .into_iter()
                         .chain([
-                            Value::Pointer(vec![], true_case).into(),
-                            Value::Pointer(vec![], false_case).into(),
+                            Value::Pointer(Closure(vec![], true_case)).into(),
+                            Value::Pointer(Closure(vec![], false_case)).into(),
                             Value::Symbol("if".to_owned()).into(),
                         ])
                         .collect(),
@@ -147,8 +147,8 @@ impl<'t> Library<'t> {
                             InnerWord::Copy(idx).into(),
                             case.value.into(),
                             InnerWord::Builtin(Builtin::Eq).into(),
-                            Value::Pointer(vec![], body).into(),
-                            Value::Pointer(vec![], next_case).into(),
+                            Value::Pointer(Closure(vec![], body)).into(),
+                            Value::Pointer(Closure(vec![], next_case)).into(),
                             Value::Symbol("if".to_owned()).into(),
                         ],
                     };
@@ -410,13 +410,16 @@ pub enum Value {
     Symbol(String),
     Usize(usize),
     List(Vec<Value>),
-    Pointer(Vec<Value>, SentenceIndex),
+    Pointer(Closure),
     Handle(usize),
     Bool(bool),
     Char(char),
     Namespace(NamespaceIndex),
     Namespace2(Namespace2),
 }
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Closure(pub Vec<Value>, pub SentenceIndex);
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Namespace2 {
@@ -439,7 +442,7 @@ impl<'a, 't> std::fmt::Display for ValueView<'a, 't> {
             Value::Namespace2(arg0) => write!(f, "ns(TODO)"),
             Value::Bool(arg0) => write!(f, "{}", arg0),
             Value::Char(arg0) => write!(f, "'{}'", arg0),
-            Value::Pointer(values, ptr) => {
+            Value::Pointer(Closure(values, ptr)) => {
                 write!(
                     f,
                     "[{}]{}#{}",
@@ -462,22 +465,6 @@ impl<'a, 't> std::fmt::Display for ValueView<'a, 't> {
                     ptr.0
                 )
             }
-        }
-    }
-}
-
-impl Value {
-    pub fn into_code<'a, 't>(self, lib: &'a Library<'t>) -> Option<(Vec<Value>, SentenceIndex)> {
-        match self {
-            Self::Pointer(values, ptr) => Some((values, ptr)),
-            Value::Symbol(_)
-            | Value::Usize(_)
-            | Value::List(_)
-            | Value::Namespace(_)
-            | Value::Namespace2(_)
-            | Value::Bool(_)
-            | Value::Char(_)
-            | Value::Handle(_) => None,
         }
     }
 }

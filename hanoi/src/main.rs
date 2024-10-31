@@ -8,9 +8,9 @@ mod vm;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use flat::{Builtin, Entry, InnerWord, Library, SentenceIndex, Value};
+use flat::{Builtin, Closure, Entry, InnerWord, Library, SentenceIndex, Value};
 use itertools::Itertools;
-use vm::Vm;
+use vm::{EvalError, ProgramCounter, Vm};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -42,108 +42,108 @@ fn debug(file: PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-// struct IterReader<'a, 't> {
-//     vm: &'a mut Vm<'t>,
-// }
+struct IterReader<'a, 't> {
+    vm: &'a mut Vm<'t>,
+}
 
-// impl<'a, 't> Iterator for IterReader<'a, 't> {
-//     type Item = Value;
+impl<'a, 't> Iterator for IterReader<'a, 't> {
+    type Item = Result<Value, EvalError<'t>>;
 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         while self.vm.step() {}
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut res = match self.vm.run_to_trap() {
+            Ok(res) => res,
+            Err(e) => return Some(Err(e)),
+        };
 
-//         let Value::Symbol(result) = self.vm.stack.pop().unwrap() else {
-//             panic!();
-//         };
+        let Some(Value::Symbol(result)) = res.pop() else {
+            panic!();
+        };
 
-//         match result.as_str() {
-//             "yield" => {
-//                 let resume = self.vm.stack.pop().unwrap();
+        match result.as_str() {
+            "yield" => {
+                let item = res.pop().unwrap();
+                let Some(Value::Pointer(mut closure)) = res.pop() else {
+                    panic!("bad value")
+                };
+                closure
+                    .0
+                    .push(Value::Pointer(Closure(vec![], SentenceIndex::TRAP)));
+                self.vm.jump_to(closure);
 
-//                 let item = self.vm.stack.pop().unwrap();
+                Some(Ok(item))
+            }
+            "eos" => None,
+            _ => panic!(),
+        }
+    }
+}
 
-//                 self.vm.prog = vec![
-//                     Value::Pointer(vec![], SentenceIndex::TRAP).into(),
-//                     resume.into(),
-//                     Value::Symbol("exec".to_owned()).into(),
-//                 ];
+fn test(file: PathBuf) -> anyhow::Result<()> {
+    let code = std::fs::read_to_string(&file)?;
 
-//                 self.vm.prog.reverse();
+    let ast = ast::Module::from_str(&code).unwrap();
 
-//                 Some(item)
-//             }
-//             "eos" => None,
-//             _ => panic!(),
-//         }
-//     }
-// }
+    let mut vm = Vm::new(ast.namespace);
 
-// fn test(file: PathBuf) -> anyhow::Result<()> {
-//     let code = std::fs::read_to_string(&file)?;
+    let Some(Entry::Namespace(tests_ns)) = vm.lib.namespaces.first().unwrap().get("tests") else {
+        panic!("no namespace named tests")
+    };
+    let Some(Entry::Value(Value::Pointer(enumerate))) =
+        vm.lib.namespaces[*tests_ns].get("enumerate")
+    else {
+        panic!("no procedure named enumerate")
+    };
+    assert_eq!(enumerate.0, vec![]);
+    let enumerate = enumerate.1;
 
-//     let ast = ast::Module::from_str(&code).unwrap();
+    let Some(Entry::Value(Value::Pointer(run))) = vm.lib.namespaces[*tests_ns].get("run") else {
+        panic!("no procedure named run")
+    };
+    assert_eq!(run.0, vec![]);
+    let run = run.1;
 
-//     let lib = Library::from_ast(ast.namespace);
+    vm.jump_to(Closure(
+        vec![Value::Pointer(Closure(vec![], SentenceIndex::TRAP))],
+        enumerate,
+    ));
 
-//     let mut prog = vec![
-//         Value::Pointer(vec![], SentenceIndex::TRAP).into(),
-//         Value::Symbol("enumerate".to_string()).into(),
-//         Value::Symbol("tests".to_string()).into(),
-//         Value::Namespace(lib.namespaces.first_key().unwrap()).into(),
-//         InnerWord::Builtin(Builtin::Get).into(),
-//         InnerWord::Builtin(Builtin::Get).into(),
-//         Value::Symbol("exec".to_string()).into(),
-//     ];
-//     prog.reverse();
+    for tc in (IterReader { vm: &mut vm }).collect_vec() {
+        let Value::Symbol(tc_name) = tc.unwrap() else {
+            panic!()
+        };
 
-//     let mut vm = Vm {
-//         lib,
-//         prog,
-//         stack: vec![],
-//         arena: Arena { buffers: vec![] },
-//     };
+        println!("Running test: {}", tc_name);
 
-//     for tc in (IterReader { vm: &mut vm }).collect_vec() {
-//         let Value::Symbol(tc_name) = tc else { panic!() };
+        vm.jump_to(Closure(
+            vec![
+                Value::Pointer(Closure(vec![], SentenceIndex::TRAP)),
+                Value::Symbol(tc_name),
+            ],
+            run,
+        ));
 
-//         println!("Running test: {}", tc_name);
+        let mut res = vm.run_to_trap().unwrap();
 
-//         vm.prog = vec![
-//             Value::Pointer(vec![], SentenceIndex::TRAP).into(),
-//             Value::Symbol(tc_name).into(),
-//             Value::Symbol("run".to_string()).into(),
-//             Value::Symbol("tests".to_string()).into(),
-//             Value::Namespace(vm.lib.namespaces.first_key().unwrap()).into(),
-//             InnerWord::Builtin(Builtin::Get).into(),
-//             InnerWord::Builtin(Builtin::Get).into(),
-//             Value::Symbol("exec".to_string()).into(),
-//         ];
-//         vm.prog.reverse();
-//         while vm.step() {}
+        let Value::Symbol(result) = res.pop().unwrap() else {
+            panic!()
+        };
 
-//         let Value::Symbol(result) = vm.stack.pop().unwrap() else {
-//             panic!()
-//         };
+        match result.as_str() {
+            "pass" => println!("PASS!"),
+            "fail" => println!("FAIL!"),
+            _ => panic!(),
+        }
+    }
 
-//         match result.as_str() {
-//             "pass" => println!("PASS!"),
-//             "fail" => println!("FAIL!"),
-//             _ => panic!(),
-//         }
-//     }
-
-//     Ok(())
-// }
+    Ok(())
+}
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.command {
         Commands::Debug { file } => debug(file),
-        Commands::Test { file } => {
-            //test(file),
-            todo!()
-        }
+        Commands::Test { file } => test(file),
     }
 }
 
