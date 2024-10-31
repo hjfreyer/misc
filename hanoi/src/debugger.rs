@@ -10,7 +10,7 @@ use ratatui::{
 
 use crate::{
     flat::{ValueView, Word},
-    vm::Vm,
+    vm::{EvalError, Vm},
 };
 
 pub struct Debugger<'t> {
@@ -22,9 +22,9 @@ pub struct Debugger<'t> {
 }
 
 impl<'t> Debugger<'t> {
-    fn step(&mut self) -> bool {
-        if !self.vm.step() {
-            return false;
+    fn step(&mut self) -> Result<bool, EvalError<'t>> {
+        if !self.vm.step()? {
+            return Ok(false);
         }
 
         if let Some(word) = self.vm.current_word() {
@@ -33,7 +33,7 @@ impl<'t> Debugger<'t> {
                 self.code_scroll = (line as u16).saturating_sub(10);
             }
         }
-        true
+        Ok(true)
     }
 
     fn code(&self) -> Paragraph {
@@ -85,6 +85,7 @@ impl<'t> Debugger<'t> {
             .vm
             .stack
             .iter()
+            .rev()
             .zip_eq(names.into_iter().rev())
             .map(|(v, name)| {
                 Row::new([
@@ -139,7 +140,7 @@ pub fn run(mut terminal: DefaultTerminal, mut debugger: Debugger) -> std::io::Re
             }
 
             if key.kind == event::KeyEventKind::Press && key.code == event::KeyCode::Right {
-                debugger.step();
+                debugger.step().unwrap();
             }
             if key.kind == event::KeyEventKind::Press && key.code == event::KeyCode::Up {
                 debugger.code_scroll = debugger.code_scroll.saturating_sub(1);

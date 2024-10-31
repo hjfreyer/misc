@@ -240,7 +240,7 @@ impl<'t> Library<'t> {
                             names.push_front(ns);
                             names.push_front(None);
                         }
-                        Builtin::Not | Builtin::SymbolLen | Builtin::IsCode => {
+                        Builtin::Not | Builtin::SymbolLen => {
                             names.pop_front();
                             names.push_front(None);
                         }
@@ -359,7 +359,6 @@ builtins! {
     (Or, or),
     (And, and),
     (Not, not),
-    (IsCode, is_code),
     (Get, get),
     (SymbolCharAt, symbol_char_at),
     (SymbolLen, symbol_len),
