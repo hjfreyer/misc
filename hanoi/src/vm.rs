@@ -19,7 +19,8 @@ pub struct EvalError<'t> {
 impl<'t> std::fmt::Display for EvalError<'t> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(span) = &self.span {
-            write!(f, "at {:?}: ", span.start_pos())?;
+            let (line, col) = span.start_pos().line_col();
+            write!(f, "at {}:{}: ", line, col)?;
         } else {
             write!(f, "at <unknown location>: ")?;
         }
@@ -243,10 +244,7 @@ fn eval<'t>(lib: &Library, stack: &mut VecDeque<Value>, w: &Word<'t>) -> Result<
     }
 }
 
-fn control_flow<'t>(
-    lib: &Library<'t>,
-    stack: &mut VecDeque<Value>,
-) -> Result<Closure, EvalError<'t>> {
+fn control_flow<'t>(lib: &Library<'t>, stack: &mut VecDeque<Value>) -> anyhow::Result<Closure> {
     let Some(Value::Symbol(op)) = stack.pop_front() else {
         panic!("bad value")
     };
@@ -316,6 +314,9 @@ fn control_flow<'t>(
                 panic!("bad value")
             };
 
+            if !stack.is_empty() {
+                bail!("exec with non-empty stack: {:?}", stack)
+            }
             assert_eq!(stack, &vec![]);
             Ok(next)
         }
@@ -392,7 +393,10 @@ impl<'t> Vm<'t> {
             self.pc.word_idx += 1;
             Ok(StepResult::Continue)
         } else {
-            let next = control_flow(&self.lib, &mut self.stack)?;
+            let next = control_flow(&self.lib, &mut self.stack).map_err(|e| EvalError {
+                span: sentence.words.last().and_then(|w| w.span),
+                source: e,
+            })?;
 
             if next.1 == SentenceIndex::TRAP {
                 Ok(StepResult::Trap(next.0))

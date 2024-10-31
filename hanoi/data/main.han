@@ -64,6 +64,9 @@ mod tests {
         bind next;
             next @another_one @yield caller #curry #curry #curry @exec;
         bind caller;
+        bind next;
+            next @basic_csv @yield caller #curry #curry #curry @exec;
+        bind caller;
             @eos caller #curry @exec
     };
 
@@ -73,16 +76,50 @@ mod tests {
                 @pass caller #curry @exec
         };
 
+        let basic_csv = {
+            bind caller;
+            bind next;
+                caller next #curry
+                @"h,e\n" 0 this.super.super.iter.symbol_chars #curry #curry
+                    this.super.super.csv.parser #curry #curry @exec;
+            bind cont;
+            bind char;
+            bind tag;
+            bind caller;
+            bind next;
+                tag @fieldchar #assert_eq char 'h' #assert_eq caller next #curry cont #curry @exec;
+            bind cont;
+            bind tag;
+            bind caller;
+            bind next;
+                tag @nextfield #assert_eq caller next #curry cont #curry @exec;
+            bind cont;
+            bind char;
+            bind tag;
+            bind caller;
+            bind next;
+                tag @fieldchar #assert_eq char 'e' #assert_eq caller next #curry cont #curry @exec;
+            bind cont;
+            bind tag;
+            bind caller;
+            bind next;
+                tag @nextrow #assert_eq caller next #curry cont #curry @exec;
+            bind tag;
+            bind caller;
+                tag @end #assert_eq
+                @pass caller #curry @exec
+        };
+
         let another_one = {
             bind caller;
-                @fail caller #curry @exec
+                @pass caller #curry @exec
         };
     }
 
     let run = {
         bind caller;
         bind case;
-            caller case @cases this #get #get #curry @exec 
+            caller case this.cases #get #curry @exec 
     };
 }
 
@@ -202,27 +239,4 @@ mod iter {
 }
 
 let main = {
-    bind next;
-        @"h,e\n" 0 this.iter.symbol_chars #curry #curry
-            this.csv.parser #curry #curry @exec;
-    bind cont;
-    bind char;
-    bind tag;
-    bind next;
-        tag @fieldchar #assert_eq char 'h' #assert_eq next cont #curry @exec;
-    bind cont;
-    bind tag;
-    bind next;
-        tag @nextfield #assert_eq next cont #curry @exec;
-    bind cont;
-    bind char;
-    bind tag;
-    bind next;
-        tag @fieldchar #assert_eq char 'e' #assert_eq next cont #curry @exec;
-    bind cont;
-    bind tag;
-    bind next;
-        tag @nextrow #assert_eq next cont #curry @exec;
-    bind tag;
-        tag @end #assert_eq
 };

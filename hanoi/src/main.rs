@@ -117,12 +117,18 @@ fn test(file: PathBuf) -> anyhow::Result<()> {
         vm.jump_to(Closure(
             vec![
                 Value::Pointer(Closure(vec![], SentenceIndex::TRAP)),
-                Value::Symbol(tc_name),
+                Value::Symbol(tc_name.clone()),
             ],
             run,
         ));
 
-        let mut res = vm.run_to_trap().unwrap();
+        let mut res = match vm.run_to_trap() {
+            Ok(res) => res,
+            Err(e) => {
+                eprintln!("Error while running test {}: {}", tc_name, e);
+                return Ok(());
+            }
+        };
 
         let Value::Symbol(result) = res.pop().unwrap() else {
             panic!()

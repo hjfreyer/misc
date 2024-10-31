@@ -43,7 +43,7 @@ pub enum Entry {
 impl<'t> Library<'t> {
     pub fn from_ast(lib: ast::Namespace<'t>) -> Self {
         let mut res = Self::default();
-        res.visit_ns(lib);
+        res.visit_ns(lib, None);
         res
     }
 
@@ -51,13 +51,23 @@ impl<'t> Library<'t> {
         self.namespaces.first().unwrap()
     }
 
-    fn visit_ns(&mut self, ns: ast::Namespace<'t>) -> NamespaceIndex {
+    fn visit_ns(
+        &mut self,
+        ns: ast::Namespace<'t>,
+        parent: Option<NamespaceIndex>,
+    ) -> NamespaceIndex {
         let ns_idx = self.namespaces.push_and_get_key(Namespace::default());
+
+        if let Some(parent) = parent {
+            self.namespaces[ns_idx]
+                .0
+                .push(("super".to_owned(), Entry::Namespace(parent)));
+        }
 
         for decl in ns.decls {
             match decl.value {
                 ast::DeclValue::Namespace(namespace) => {
-                    let subns = self.visit_ns(namespace);
+                    let subns = self.visit_ns(namespace, Some(ns_idx));
                     self.namespaces[ns_idx]
                         .0
                         .push((decl.name, Entry::Namespace(subns)));
