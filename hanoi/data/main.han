@@ -62,7 +62,7 @@ mod tests {
             next @assert_true @yield caller #curry #curry #curry @exec; 
         bind caller;
         bind next;
-            next @another_one @yield caller #curry #curry #curry @exec;
+            next @symbol_iter @yield caller #curry #curry #curry @exec;
         bind caller;
         bind next;
             next @basic_csv @yield caller #curry #curry #curry @exec;
@@ -110,8 +110,31 @@ mod tests {
                 @pass caller #curry @exec
         };
 
-        let another_one = {
+        let symbol_iter = {
             bind caller;
+            bind next;
+                caller next #curry @"foo" 0 this.super.super.iter.symbol_chars #curry #curry #curry @exec;
+            bind cont;
+            bind char;
+            bind tag;
+            bind caller;
+            bind next;
+                tag @yield #assert_eq char 'f' #assert_eq caller next #curry cont #curry @exec;
+            bind cont;
+            bind char;
+            bind tag;
+            bind caller;
+            bind next;
+                tag @yield #assert_eq char 'o' #assert_eq caller next #curry cont #curry @exec;
+            bind cont;
+            bind char;
+            bind tag;
+            bind caller;
+            bind next;
+                tag @yield #assert_eq char 'o' #assert_eq caller next #curry cont #curry @exec;
+            bind tag;
+            bind caller;
+                tag @eos #assert_eq
                 @pass caller #curry @exec
         };
     }

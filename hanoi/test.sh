@@ -1,0 +1,1 @@
+cargo run -- test data/main.han
