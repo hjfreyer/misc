@@ -4,6 +4,7 @@ COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
 
 // LITERALS
 
+nil = { "nil" }
 
 bool = { "true" | "false" }
 
@@ -29,7 +30,7 @@ str_char  =  {
   | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
 
-literal = { bool | int | char_lit | symbol }
+literal = { bool | int | char_lit | symbol | nil }
 
 // END LITERALS
 

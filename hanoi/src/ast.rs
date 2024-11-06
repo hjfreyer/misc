@@ -76,6 +76,8 @@ fn literal_from_pair(p: pest::iterators::Pair<Rule>) -> Value {
                 _ => unreachable!(),
             }
         }
+
+        Rule::nil => Value::Nil,
         _ => unreachable!("{:?}", literal),
     }
 }

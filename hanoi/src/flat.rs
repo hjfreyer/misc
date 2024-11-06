@@ -224,7 +224,8 @@ impl<'t> Library<'t> {
                         | Builtin::Or
                         | Builtin::And
                         | Builtin::Get
-                        | Builtin::SymbolCharAt => {
+                        | Builtin::SymbolCharAt
+                        | Builtin::Cons => {
                             names.pop_front();
                             names.pop_front();
                             names.push_front(None);
@@ -257,6 +258,11 @@ impl<'t> Library<'t> {
                         Builtin::AssertEq => {
                             names.pop_front();
                             names.pop_front();
+                        }
+                        Builtin::Snoc => {
+                            names.pop_front();
+                            names.push_front(None);
+                            names.push_front(None);
                         }
                     },
                 }
@@ -377,6 +383,9 @@ builtins! {
     (NsInsert, ns_insert),
     (NsGet, ns_get),
     (NsRemove, ns_remove),
+
+    (Cons, cons),
+    (Snoc, snoc),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -426,6 +435,21 @@ pub enum Value {
     Char(char),
     Namespace(NamespaceIndex),
     Namespace2(Namespace2),
+    Nil,
+    Cons(Box<Value>, Box<Value>),
+}
+
+impl Value {
+    pub fn is_small(&self) -> bool {
+        match self {
+            Value::Nil | Value::Symbol(_) | Value::Usize(_) | Value::Char(_) | Value::Bool(_) => {
+                true
+            }
+            Value::Namespace(namespace_index) => todo!(),
+            Value::Pointer(Closure(vec, _)) => vec.is_empty(),
+            Value::List(_) | Value::Handle(_) | Value::Namespace2(_) | Value::Cons(_, _) => false,
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -451,6 +475,19 @@ impl<'a, 't> std::fmt::Display for ValueView<'a, 't> {
             Value::Namespace(arg0) => write!(f, "ns({})", arg0.0),
             Value::Namespace2(arg0) => write!(f, "ns(TODO)"),
             Value::Bool(arg0) => write!(f, "{}", arg0),
+            Value::Nil => write!(f, "nil"),
+            Value::Cons(car, cdr) => write!(
+                f,
+                "cons({}, {})",
+                ValueView {
+                    lib: self.lib,
+                    value: car
+                },
+                ValueView {
+                    lib: self.lib,
+                    value: cdr
+                }
+            ),
             Value::Char(arg0) => write!(f, "'{}'", arg0),
             Value::Pointer(Closure(values, ptr)) => {
                 write!(

@@ -262,4 +262,5 @@ mod iter {
 }
 
 let main = {
+    1 2 nil #cons #snoc
 };

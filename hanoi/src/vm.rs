@@ -1,6 +1,6 @@
 use std::{any, collections::VecDeque};
 
-use anyhow::{bail, Context};
+use anyhow::{bail, ensure, Context};
 use pest::Span;
 use thiserror::Error;
 use typed_index_collections::TiSliceIndex;
@@ -219,6 +219,28 @@ fn inner_eval(lib: &Library, stack: &mut Stack, w: &InnerWord) -> anyhow::Result
 
             stack.push(Value::Namespace2(ns));
             stack.push(val);
+            Ok(())
+        }
+        InnerWord::Builtin(Builtin::Cons) => {
+            let Some(cdr) = stack.pop() else {
+                bail!("bad value")
+            };
+            let Some(car) = stack.pop() else {
+                bail!("bad value")
+            };
+
+            ensure!(cdr.is_small(), "bad cdr type: {:?}", cdr);
+            ensure!(car.is_small(), "bad car type: {:?}", car);
+
+            stack.push(Value::Cons(Box::new(car), Box::new(cdr)));
+            Ok(())
+        }
+        InnerWord::Builtin(Builtin::Snoc) => {
+            let Some(Value::Cons(car, cdr)) = stack.pop() else {
+                bail!("bad value")
+            };
+            stack.push(*car);
+            stack.push(*cdr);
             Ok(())
         }
     }

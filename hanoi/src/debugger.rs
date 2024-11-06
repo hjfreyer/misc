@@ -84,7 +84,6 @@ impl<'t> Debugger<'t> {
             .vm
             .stack
             .iter()
-            .rev()
             .zip_eq(names.into_iter().rev())
             .map(|(v, name)| {
                 Row::new([
