@@ -2,11 +2,8 @@ WHITESPACE = _{ " " | "\n" }
 
 COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
 
-builtin = { "#" ~ identifier }
+// LITERALS
 
-this = _{ "this" }
-
-keyword = _{ "bind" | "match" | "if" | this }
 
 bool = { "true" | "false" }
 
@@ -22,13 +19,7 @@ lit_char = @{
 identifier   = @{ !keyword ~ id_non_digit ~ (id_non_digit | ASCII_DIGIT)* }
 id_non_digit = _{ ASCII_ALPHA | "_" }
 
-func_call = { "#" ~ identifier ~ "(" ~ (int | identifier) ~ ")" }
-
 symbol = { "@" ~ (identifier | string) }
-
-delete = { "^" ~ identifier }
-
-copy = { "*" ~ identifier }
 
 string    = ${ "\"" ~ str_inner ~ "\"" }
 str_inner = @{ str_char* }
@@ -39,6 +30,20 @@ str_char  =  {
 }
 
 literal = { bool | int | char_lit | symbol }
+
+// END LITERALS
+
+builtin = { "#" ~ identifier }
+
+this = _{ "this" }
+
+keyword = _{ "bind" | "match" | "if" | this }
+
+func_call = { "#" ~ identifier ~ "(" ~ (int | identifier) ~ ")" }
+
+delete = { "^" ~ identifier }
+
+copy = { "*" ~ identifier }
 
 expr = { path | literal | func_call | identifier | builtin | delete | copy }
 
