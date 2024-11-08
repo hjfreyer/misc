@@ -200,6 +200,8 @@ impl<'t> Library<'t> {
         //             Some(args.into_iter().chain(names).collect())
         //         }
         //     };
+        let mut stash_names: Vec<Option<String>> = vec![];
+
         let mut words = vec![];
         for e in sentence.exprs {
             for mut w in self.convert_expr(ns_idx, &mut names, e.into()) {
@@ -217,6 +219,7 @@ impl<'t> Library<'t> {
                         let moved = names.pop_front().unwrap();
                         names.insert(*idx, moved);
                     }
+                    InnerWord::Ref(idx) => names.push_front(None),
                     InnerWord::Builtin(builtin) => match builtin {
                         Builtin::Add
                         | Builtin::Eq
@@ -251,7 +254,7 @@ impl<'t> Library<'t> {
                             names.push_front(ns);
                             names.push_front(None);
                         }
-                        Builtin::Not | Builtin::SymbolLen => {
+                        Builtin::Not | Builtin::SymbolLen | Builtin::Deref => {
                             names.pop_front();
                             names.push_front(None);
                         }
@@ -264,11 +267,18 @@ impl<'t> Library<'t> {
                             names.push_front(None);
                             names.push_front(None);
                         }
+                        Builtin::Stash => {
+                            stash_names.push(names.pop_front().unwrap());
+                        }
+                        Builtin::Unstash => {
+                            names.push_front(stash_names.pop().unwrap());
+                        }
                     },
                 }
                 words.push(w)
             }
         }
+        assert_eq!(stash_names, vec![]);
         Sentence {
             name: Some(name.to_owned()),
             words,
@@ -307,6 +317,7 @@ impl<'t> Library<'t> {
                 "drop" => InnerWord::Drop(idx),
                 "mv" => InnerWord::Move(idx),
                 "sd" => InnerWord::Send(idx),
+                "ref" => InnerWord::Ref(idx),
                 _ => panic!("unknown reference: {}", f),
             })],
             InnerExpression::Reference(r) => {
@@ -386,6 +397,11 @@ builtins! {
 
     (Cons, cons),
     (Snoc, snoc),
+
+    (Deref, deref),
+
+    (Stash, stash),
+    (Unstash, unstash),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -421,6 +437,7 @@ pub enum InnerWord {
     Drop(usize),
     Move(usize),
     Send(usize),
+    Ref(usize),
     Builtin(Builtin),
 }
 
@@ -437,16 +454,20 @@ pub enum Value {
     Namespace2(Namespace2),
     Nil,
     Cons(Box<Value>, Box<Value>),
+    Ref(usize),
 }
 
 impl Value {
     pub fn is_small(&self) -> bool {
         match self {
-            Value::Nil | Value::Symbol(_) | Value::Usize(_) | Value::Char(_) | Value::Bool(_) => {
-                true
-            }
+            Value::Nil
+            | Value::Symbol(_)
+            | Value::Usize(_)
+            | Value::Char(_)
+            | Value::Bool(_)
+            | Value::Ref(_) => true,
             Value::Namespace(namespace_index) => todo!(),
-            Value::Pointer(Closure(vec, _)) => vec.is_empty(),
+            Value::Pointer(Closure(vec, _)) => true,
             Value::List(_) | Value::Handle(_) | Value::Namespace2(_) | Value::Cons(_, _) => false,
         }
     }
@@ -488,6 +509,7 @@ impl<'a, 't> std::fmt::Display for ValueView<'a, 't> {
                     value: cdr
                 }
             ),
+            Value::Ref(arg0) => write!(f, "ref({})", arg0),
             Value::Char(arg0) => write!(f, "'{}'", arg0),
             Value::Pointer(Closure(values, ptr)) => {
                 write!(

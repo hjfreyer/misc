@@ -243,6 +243,25 @@ fn inner_eval(lib: &Library, stack: &mut Stack, w: &InnerWord) -> anyhow::Result
             stack.push(*cdr);
             Ok(())
         }
+
+        InnerWord::Ref(idx) => {
+            stack.push(Value::Ref(stack.back_idx(*idx)?));
+            Ok(())
+        }
+        InnerWord::Builtin(Builtin::Deref) => {
+            let Some(Value::Ref(idx)) = stack.pop() else {
+                bail!("bad value")
+            };
+            let Some(value) = stack.inner.get(idx) else {
+                bail!("undefined ref")
+            };
+
+            stack.push(value.clone());
+            Ok(())
+        }
+
+        InnerWord::Builtin(Builtin::Stash) => stack.stash(),
+        InnerWord::Builtin(Builtin::Unstash) => stack.unstash(),
     }
 }
 
@@ -412,6 +431,7 @@ impl<'t> Vm<'t> {
 #[derive(Debug, Default)]
 pub struct Stack {
     inner: Vec<Value>,
+    stash: Vec<Value>,
 }
 
 impl Stack {
@@ -468,5 +488,21 @@ impl Stack {
 
     pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Value> {
         self.inner.iter()
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    pub fn stash(&mut self) -> anyhow::Result<()> {
+        self.stash
+            .push(self.inner.pop().context("stashed from empty stack")?);
+        Ok(())
+    }
+
+    pub fn unstash(&mut self) -> anyhow::Result<()> {
+        self.inner
+            .push(self.stash.pop().context("unstashed from empty stash")?);
+        Ok(())
     }
 }

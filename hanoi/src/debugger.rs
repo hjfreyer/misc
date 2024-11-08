@@ -19,20 +19,31 @@ pub struct Debugger<'t> {
 
     code_scroll: u16,
     stack_state: TableState,
+    error: Option<EvalError<'t>>,
 }
 
 impl<'t> Debugger<'t> {
-    fn step(&mut self) -> Result<StepResult, EvalError<'t>> {
-        let step = self.vm.step()?;
-        if let StepResult::Continue = step {
-            if let Some(word) = self.vm.current_word() {
-                if let Some(span) = &word.span {
-                    let (line, _) = span.start_pos().line_col();
-                    self.code_scroll = (line as u16).saturating_sub(10);
+    fn step(&mut self) -> Result<(), EvalError<'t>> {
+        if self.error.is_some() {
+            return Ok(());
+        }
+
+        match self.vm.step() {
+            Ok(step) => {
+                if let StepResult::Continue = step {
+                    if let Some(word) = self.vm.current_word() {
+                        if let Some(span) = &word.span {
+                            let (line, _) = span.start_pos().line_col();
+                            self.code_scroll = (line as u16).saturating_sub(10);
+                        }
+                    }
                 }
             }
+            Err(err) => {
+                self.error = Some(err);
+            }
         }
-        Ok(step)
+        Ok(())
     }
 
     fn code(&self) -> Paragraph {
@@ -80,12 +91,18 @@ impl<'t> Debugger<'t> {
             .max()
             .unwrap_or_default();
 
-        let items: Vec<Row> = self
+        let mut items: Vec<Row> = self
             .vm
             .stack
             .iter()
-            .zip_eq(names.into_iter().rev())
-            .map(|(v, name)| {
+            .rev()
+            .zip_longest(names.into_iter())
+            .map(|v| {
+                let (v, name) = match v {
+                    itertools::EitherOrBoth::Both(v, name) => (v, name),
+                    itertools::EitherOrBoth::Left(v) => (v, None),
+                    itertools::EitherOrBoth::Right(_) => panic!("name with no value?"),
+                };
                 Row::new([
                     if let Some(name) = name {
                         format!("{} = ", name)
@@ -100,6 +117,7 @@ impl<'t> Debugger<'t> {
                 ])
             })
             .collect();
+        items.reverse();
         Table::new(
             items,
             [Constraint::Length(names_width as u16), Constraint::Fill(1)],
@@ -108,11 +126,26 @@ impl<'t> Debugger<'t> {
         .highlight_style(Style::new().black().on_white())
     }
 
+    fn error_text(&self) -> Text {
+        let Some(err) = &self.error else {
+            return Text::default();
+        };
+        Text::raw(err.to_string()).red()
+    }
+
     fn render_program(&mut self, frame: &mut ratatui::Frame) {
         let layout = Layout::horizontal(Constraint::from_percentages([50, 50])).split(frame.area());
 
+        let err_text = self.error_text();
+        let stack_layout = Layout::vertical([
+            Constraint::Fill(1),
+            Constraint::Min(err_text.height() as u16),
+        ])
+        .split(layout[1]);
+
         frame.render_widget(self.code(), layout[0]);
-        frame.render_stateful_widget(self.stack(), layout[1], &mut self.stack_state);
+        frame.render_widget(err_text, stack_layout[1]);
+        frame.render_stateful_widget(self.stack(), stack_layout[0], &mut self.stack_state);
     }
 
     pub fn new(code: &'t str, vm: crate::vm::Vm<'t>) -> Self {
@@ -121,6 +154,7 @@ impl<'t> Debugger<'t> {
             code: &code,
             vm,
             stack_state: TableState::default(),
+            error: None,
         }
     }
 }
