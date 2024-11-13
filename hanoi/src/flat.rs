@@ -2,10 +2,12 @@ use std::{collections::VecDeque, usize};
 
 use derive_more::derive::{From, Into};
 use itertools::Itertools;
-use pest::Span;
+use pest::{iterators::Pair, Span};
 use typed_index_collections::TiVec;
 
-use crate::ast::{self, Expression, InnerExpression};
+use crate::ast::{
+    self, ident_from_pair, literal_from_pair, Expression, InnerExpression, Path, Rule,
+};
 
 #[derive(From, Into, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SentenceIndex(usize);
@@ -79,9 +81,228 @@ impl<'t> Library<'t> {
                         Entry::Value(Value::Pointer(Closure(vec![], sentence_idx))),
                     ));
                 }
+                ast::DeclValue::Proc(ast::Proc { args, body }) => {
+                    let sentence_idx = self.visit_proc(&decl.name, ns_idx, args, body);
+                    self.namespaces[ns_idx].0.push((
+                        decl.name,
+                        Entry::Value(Value::Pointer(Closure(vec![], sentence_idx))),
+                    ));
+                }
             }
         }
         ns_idx
+    }
+
+    fn visit_proc(
+        &mut self,
+        name: &str,
+        ns_idx: NamespaceIndex,
+        args: Pair<'t, Rule>,
+        body: Pair<'t, Rule>,
+    ) -> SentenceIndex {
+        let mut names: VecDeque<Option<String>> = args
+            .into_inner()
+            .map(|p| ident_from_pair(p).as_str().to_owned())
+            // .chain(["caller".to_owned()])
+            .map(Some)
+            .collect();
+        self.visit_proc_block_pair(name, ns_idx, names, body)
+    }
+
+    fn visit_proc_block_pair(
+        &mut self,
+        name: &str,
+        ns_idx: NamespaceIndex,
+        mut names: VecDeque<Option<String>>,
+        body: Pair<'t, Rule>,
+    ) -> SentenceIndex {
+        let (statements, endpoint) = body.into_inner().collect_tuple().unwrap();
+
+        assert_eq!(statements.as_rule(), Rule::proc_statements);
+        let statements = statements.into_inner().collect();
+        self.visit_proc_block(name, ns_idx, names, statements, endpoint)
+    }
+
+    fn visit_proc_block(
+        &mut self,
+        name: &str,
+        ns_idx: NamespaceIndex,
+        mut names: VecDeque<Option<String>>,
+        mut statements: VecDeque<Pair<'t, Rule>>,
+        endpoint: Pair<'t, Rule>,
+    ) -> SentenceIndex {
+        let Some(statement) = statements.pop_front() else {
+            return self.visit_proc_endpoint(name, ns_idx, names, endpoint);
+        };
+
+        assert_eq!(statement.as_rule(), Rule::proc_statement);
+        let statement = statement.into_inner().exactly_one().unwrap();
+        let span = statement.as_span();
+        match statement.as_rule() {
+            Rule::proc_let => {
+                let (let_names, expr) = statement.into_inner().collect_tuple().unwrap();
+                let let_names = let_names
+                    .into_inner()
+                    .map(|p| Some(ident_from_pair(p).as_str().to_owned()))
+                    .collect_vec();
+
+                let mut builder =
+                    SentenceBuilder::new(Some(name.to_owned()), ns_idx, names.clone());
+
+                self.visit_proc_expr(ns_idx, &mut builder, expr);
+
+                builder.sd_top(span);
+
+                let mut next_names = builder.names.clone();
+                next_names.pop_back();
+                next_names.extend(let_names);
+
+                let next = self.visit_proc_block(name, ns_idx, next_names, statements, endpoint);
+
+                builder.literal(span, Value::Pointer(Closure(vec![], next)));
+                while builder.names.len() > 2 {
+                    builder.builtin(span, Builtin::Curry);
+                }
+                builder.mv_idx(span, 1);
+                builder.builtin(span, Builtin::Curry);
+                builder.literal(span, Value::Symbol("exec".to_owned()));
+
+                self.sentences.push_and_get_key(builder.build())
+            }
+            _ => unreachable!("Unexpected rule: {:?}", statement),
+        }
+    }
+    fn visit_proc_expr(
+        &mut self,
+        ns_idx: NamespaceIndex,
+        // names: &mut VecDeque<Option<String>>,
+        builder: &mut SentenceBuilder<'t>,
+        expr: Pair<'t, Rule>,
+    ) {
+        assert_eq!(expr.as_rule(), Rule::proc_expr);
+        let expr = expr.into_inner().exactly_one().unwrap();
+        match expr.as_rule() {
+            Rule::proc_func_call => {
+                let (func, args) = expr.into_inner().collect_tuple().unwrap();
+                let func = ast::PathOrIdent::from(func);
+
+                let args = args.into_inner().collect_vec();
+
+                for arg in args.iter().rev() {
+                    match arg.as_rule() {
+                        Rule::identifier => {
+                            let arg = ident_from_pair(arg.clone());
+                            builder.mv(arg, arg.as_str());
+                        }
+                        Rule::copy => {
+                            let arg = arg.clone().into_inner().exactly_one().unwrap();
+                            let arg = ident_from_pair(arg);
+                            builder.cp(arg, arg.as_str());
+                        }
+                        Rule::literal => {
+                            let lit = literal_from_pair(arg.clone());
+                            builder.literal(arg.as_span(), lit);
+                        }
+                        _ => unreachable!("Unexpected rule: {:?}", arg),
+                    }
+                }
+
+                match func {
+                    ast::PathOrIdent::Path(p) => builder.path(p),
+                    ast::PathOrIdent::Ident(i) => builder.mv(i, i.as_str()),
+                }
+
+                for arg in args.into_iter() {
+                    builder.builtin(arg.as_span(), Builtin::Curry);
+                }
+
+            }
+            _ => unreachable!("Unexpected rule: {:?}", expr),
+        }
+    }
+
+    fn visit_proc_endpoint(
+        &mut self,
+        name: &str,
+        ns_idx: NamespaceIndex,
+        names: VecDeque<Option<String>>,
+        endpoint: Pair<'t, Rule>,
+    ) -> SentenceIndex {
+        assert_eq!(endpoint.as_rule(), Rule::proc_endpoint);
+        let endpoint = endpoint.into_inner().exactly_one().unwrap();
+
+        match endpoint.as_rule() {
+            Rule::proc_func_call => {
+                let span = endpoint.as_span();
+
+                let mut builder =
+                    SentenceBuilder::new(Some(name.to_owned()), ns_idx, names.clone());
+
+                let (func, args) = endpoint.into_inner().collect_tuple().unwrap();
+                let func = ast::PathOrIdent::from(func);
+
+                let args = args.into_inner().collect_vec();
+
+                for arg in args.iter().rev() {
+                    match arg.as_rule() {
+                        Rule::identifier => {
+                            let arg = ident_from_pair(arg.clone());
+                            builder.mv(arg, arg.as_str());
+                        }
+                        Rule::copy => {
+                            let arg = arg.clone().into_inner().exactly_one().unwrap();
+                            let arg = ident_from_pair(arg);
+                            builder.cp(arg, arg.as_str());
+                        }
+                        Rule::literal => {
+                            let lit = literal_from_pair(arg.clone());
+                            builder.literal(arg.as_span(), lit);
+                        }
+                        _ => unreachable!("Unexpected rule: {:?}", arg),
+                    }
+                }
+
+                match func {
+                    ast::PathOrIdent::Path(p) => builder.path(p),
+                    ast::PathOrIdent::Ident(i) => builder.mv(i, i.as_str()),
+                }
+
+                for arg in args.into_iter() {
+                    builder.builtin(arg.as_span(), Builtin::Curry);
+                }
+
+                while builder.names.len() > 1 {
+                    builder.drop_idx(span, 1);
+                }
+                builder.literal(span, Value::Symbol("exec".to_owned()));
+
+                self.sentences.push_and_get_key(builder.build())
+            }
+            Rule::proc_if => {
+                let span = endpoint.as_span();
+                let (cond, true_case, false_case) = endpoint.into_inner().collect_tuple().unwrap();
+
+                let cond = ident_from_pair(cond);
+
+                let mut builder =
+                    SentenceBuilder::new(Some(name.to_owned()), ns_idx, names.clone());
+                builder.mv(cond, cond.as_str());
+
+                let mut case_names = builder.names.clone();
+                case_names.pop_front();
+
+                let true_case =
+                    self.visit_proc_block_pair(name, ns_idx, case_names.clone(), true_case);
+                let false_case = self.visit_proc_block_pair(name, ns_idx, case_names, false_case);
+
+                builder.literal(span, Value::Pointer(Closure(vec![], true_case)));
+                builder.literal(span, Value::Pointer(Closure(vec![], false_case)));
+                builder.literal(span, Value::Symbol("if".to_owned()));
+
+                self.sentences.push_and_get_key(builder.build())
+            }
+            _ => unreachable!("Unexpected rule: {:?}", endpoint),
+        }
     }
 
     fn visit_code(
@@ -376,6 +597,186 @@ macro_rules! builtins {
             }
         }
     };
+}
+
+pub struct SentenceBuilder<'t> {
+    pub name: Option<String>,
+    pub ns_idx: NamespaceIndex,
+    pub names: VecDeque<Option<String>>,
+    pub words: Vec<Word<'t>>,
+}
+
+impl<'t> SentenceBuilder<'t> {
+    pub fn new(
+        name: Option<String>,
+        ns_idx: NamespaceIndex,
+        names: VecDeque<Option<String>>,
+    ) -> Self {
+        Self {
+            name,
+            ns_idx,
+            names,
+            words: vec![],
+        }
+    }
+
+    pub fn build(self) -> Sentence<'t> {
+        Sentence {
+            name: self.name,
+            words: self.words,
+        }
+    }
+
+    pub fn literal(&mut self, span: Span<'t>, value: Value) {
+        self.words.push(Word {
+            inner: InnerWord::Push(value),
+            span: Some(span),
+            names: Some(self.names.clone()),
+        });
+        self.names.push_front(None);
+    }
+
+    pub fn mv(&mut self, span: Span<'t>, name: &str) {
+        let Some(idx) = self.names.iter().position(|n| match n {
+            Some(n) => n.as_str() == name,
+            None => false,
+        }) else {
+            panic!("unknown reference: {:?}", name)
+        };
+        self.mv_idx(span, idx)
+    }
+
+    pub fn mv_idx(&mut self, span: Span<'t>, idx: usize) {
+        let names = self.names.clone();
+        let declared = self.names.remove(idx).unwrap();
+        self.names.push_front(declared);
+
+        self.words.push(Word {
+            inner: InnerWord::Move(idx),
+            span: Some(span),
+            names: Some(names),
+        });
+    }
+
+    pub fn cp(&mut self, span: Span<'t>, name: &str) {
+        let Some(idx) = self.names.iter().position(|n| match n {
+            Some(n) => n.as_str() == name,
+            None => false,
+        }) else {
+            panic!("unknown reference: {:?}", name)
+        };
+        self.cp_idx(span, idx)
+    }
+
+    pub fn cp_idx(&mut self, span: Span<'t>, idx: usize) {
+        let names = self.names.clone();
+        self.names.push_front(None);
+
+        self.words.push(Word {
+            inner: InnerWord::Copy(idx),
+            span: Some(span),
+            names: Some(names),
+        });
+    }
+
+    pub fn sd_idx(&mut self, span: Span<'t>, idx: usize) {
+        let names = self.names.clone();
+
+        let declared = self.names.pop_front().unwrap();
+        self.names.insert(idx, declared);
+
+        self.words.push(Word {
+            inner: InnerWord::Send(idx),
+            span: Some(span),
+            names: Some(names),
+        });
+    }
+    pub fn sd_top(&mut self, span: Span<'t>) {
+        self.sd_idx(span, self.names.len() - 1)
+    }
+
+    pub fn drop_idx(&mut self, span: Span<'t>, idx: usize) {
+        let names = self.names.clone();
+        let declared = self.names.remove(idx).unwrap();
+
+        self.words.push(Word {
+            inner: InnerWord::Drop(idx),
+            span: Some(span),
+            names: Some(names),
+        });
+    }
+
+    pub fn path(&mut self, Path { span, segments }: Path<'t>) {
+        for segment in segments.iter() {
+            self.literal(*segment, Value::Symbol(segment.as_str().to_owned()));
+        }
+        self.literal(span, Value::Namespace(self.ns_idx));
+        for segment in segments {
+            self.builtin(segment, Builtin::Get);
+        }
+    }
+
+    pub fn builtin(&mut self, span: Span<'t>, builtin: Builtin) {
+        self.words.push(Word {
+            inner: InnerWord::Builtin(builtin),
+            span: Some(span),
+            names: Some(self.names.clone()),
+        });
+        match builtin {
+            Builtin::Add
+            | Builtin::Eq
+            | Builtin::Curry
+            | Builtin::Or
+            | Builtin::And
+            | Builtin::Get
+            | Builtin::SymbolCharAt
+            | Builtin::Cons => {
+                self.names.pop_front();
+                self.names.pop_front();
+                self.names.push_front(None);
+            }
+            Builtin::NsEmpty => {
+                self.names.push_front(None);
+            }
+            Builtin::NsGet => {
+                let ns = self.names.pop_front().unwrap();
+                self.names.pop_front();
+                self.names.push_front(ns);
+                self.names.push_front(None);
+            }
+            Builtin::NsInsert => {
+                self.names.pop_front();
+                self.names.pop_front();
+                self.names.pop_front();
+                self.names.push_front(None);
+            }
+            Builtin::NsRemove => {
+                let ns = self.names.pop_front().unwrap();
+                self.names.pop_front();
+                self.names.push_front(ns);
+                self.names.push_front(None);
+            }
+            Builtin::Not | Builtin::SymbolLen | Builtin::Deref => {
+                self.names.pop_front();
+                self.names.push_front(None);
+            }
+            Builtin::AssertEq => {
+                self.names.pop_front();
+                self.names.pop_front();
+            }
+            Builtin::Snoc => {
+                self.names.pop_front();
+                self.names.push_front(None);
+                self.names.push_front(None);
+            }
+            Builtin::Stash => {
+                todo!()
+            }
+            Builtin::Unstash => {
+                todo!()
+            }
+        }
+    }
 }
 
 builtins! {

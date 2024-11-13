@@ -174,93 +174,25 @@ mod iter {
             a b #add caller #curry @exec
     };
 
-    let symbol_chars = {
-        bind caller;
-        bind symbol;
-        bind offset;
-        bind next;
-            #sd(3)
-            #ns_empty 
-                @offset #mv(2) #ns_insert
-                @symbol #mv(2) #ns_insert
-                @caller #mv(2) #ns_insert
-            @symbol #ns_get #mv(1)
-            this.symbol_len #mv(1)
-            #mv(3) #curry #sd(2)
-            #curry #curry
-            @exec;
-        bind len;
-        bind ns;
-        bind next;
-            #sd(2)
-            @len #mv(2) #ns_insert
-            @len #ns_remove #mv(1) 
-            @offset #ns_get #mv(1)
-            this.eq #mv(1)
-            #mv(4) #curry #sd(3)
-            #curry #curry #curry
-            @exec;
-        bind are_eq;
-        bind ns;
-            @are_eq #mv(2) #ns_insert
-            @are_eq #ns_get if {
-                bind ns;
-                    @eos #mv(1) 
-                    @caller #ns_remove #mv(1)
-                    #drop(0)
-                    #curry
-                    @exec
-            } else {
-                bind ns;
-                bind next;
-                    #sd(1)
-                    @symbol #ns_get #mv(1) 
-                    @offset #ns_get #mv(1) 
-                    this.symbol_char_at #mv(1)
-                    #mv(4) #curry #sd(3) 
-                    #curry #curry #curry
-                    @exec;
-                bind char_at;
-                bind ns;
-                bind next;
-                    #sd(2)
-                    @char_at #mv(2) #ns_insert
+    proc symbol_chars_inner(offset, symbol, caller) {
+        let (len) = this.symbol_len(*symbol);
+        let (are_eq) = this.eq(*offset, *len);
+        if are_eq {
+            caller(@eos)
+        } else {
+            let (char) = this.symbol_char_at(*offset, *symbol);
+            let (caller) = caller(@yield, char);
+            let (next_offset) = this.add(offset, 1);
+            this.symbol_chars_inner(next_offset, symbol, caller)
+        }
+    }
 
-                    @char_at #ns_get #mv(1)
-                    @yield #mv(1)
-                    @caller #ns_remove #mv(1)
-                    #mv(4) #curry #sd(3)
-                    #curry #curry #curry
-                    @exec;
-
-                bind caller;
-                bind ns;
-                bind next;
-                    #sd(2)
-                    @caller #mv(2) #ns_insert
-
-                    @offset #ns_remove #mv(1)
-                    1 #mv(1)
-                    this.add #mv(1)
-                    #mv(4) #curry #sd(3)
-                    #curry #curry #curry
-                    @exec;
-
-                bind sum;
-                bind ns;
-                    @sum #mv(2) #ns_insert
-
-                    @caller #ns_remove #mv(1)
-                    @symbol #ns_remove #mv(1)
-                    @sum #ns_remove #mv(1)
-                    this.symbol_chars #mv(1)
-                    #drop(0)
-                    #curry #curry #curry
-                    @exec
-            }
-    };
+    proc symbol_chars(offset, symbol, caller) {
+        this.symbol_chars_inner(0, symbol, caller)
+    }
 }
 
 let main = {
-    1 2 nil #cons #snoc
+    this.tests.cases.symbol_iter #curry @exec;
+    @halt
 };

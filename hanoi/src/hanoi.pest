@@ -70,8 +70,46 @@ code_decl = { "let" ~ identifier ~ "=" ~ "{" ~ code ~ "}" ~ ";" }
 
 ns_decl = { "mod" ~ identifier ~ "{" ~ namespace ~ "}" }
 
-decl = _{ code_decl | ns_decl }
+decl = _{ code_decl | ns_decl | proc_decl }
 
 namespace = { decl* }
 
 file = { SOI ~ namespace ~ EOI }
+
+// Proc syntax
+
+proc_decl = { "proc" ~ identifier ~ proc_args ~ "{" ~ proc_block ~ "}" }
+
+proc_args = {
+    "(" ~ ")"
+  | "(" ~ identifier ~ ("," ~ identifier)* ~ ")"
+}
+
+proc_block      = { proc_statements ~ proc_endpoint }
+proc_statements = { proc_statement* }
+
+proc_statement = { proc_let }
+
+proc_let = { "let" ~ proc_args ~ "=" ~ proc_expr ~ ";" }
+
+proc_endpoint = { proc_if | proc_func_call }
+
+proc_if = {
+    "if" ~ identifier ~ "{" ~ proc_block ~ "}" ~ "else" ~ "{" ~ proc_block ~ "}"
+}
+
+proc_expr = { literal | proc_func_call }
+
+proc_func_call =  { proc_func_name ~ proc_func_call_args }
+proc_func_name = _{ path | identifier }
+
+proc_func_call_args = {
+    "(" ~ ")"
+  | "(" ~ proc_func_call_arg ~ ("," ~ proc_func_call_arg)* ~ ")"
+}
+
+proc_func_call_arg = _{
+    literal
+  | copy
+  | identifier
+}

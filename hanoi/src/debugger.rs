@@ -96,12 +96,15 @@ impl<'t> Debugger<'t> {
             .stack
             .iter()
             .rev()
-            .zip_longest(names.into_iter())
+            .zip_longest(names.iter())
             .map(|v| {
                 let (v, name) = match v {
-                    itertools::EitherOrBoth::Both(v, name) => (v, name),
+                    itertools::EitherOrBoth::Both(v, name) => (v, name.as_ref()),
                     itertools::EitherOrBoth::Left(v) => (v, None),
-                    itertools::EitherOrBoth::Right(_) => panic!("name with no value?"),
+                    itertools::EitherOrBoth::Right(_) => panic!(
+                        "name with no value?\nnames: {:?}\n stack: {:?}",
+                        names, self.vm.stack.iter().rev().collect_vec()
+                    ),
                 };
                 Row::new([
                     if let Some(name) = name {

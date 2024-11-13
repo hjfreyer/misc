@@ -35,17 +35,17 @@ pub struct Namespace<'t> {
     pub span: Span<'t>,
 }
 
-fn ident_from_pair<'t>(p: pest::iterators::Pair<'t, Rule>) -> Span<'t> {
+pub fn ident_from_pair<'t>(p: pest::iterators::Pair<'t, Rule>) -> Span<'t> {
     assert_eq!(p.as_rule(), Rule::identifier);
     p.as_span()
 }
 
-fn int_from_pair(p: pest::iterators::Pair<Rule>) -> usize {
+pub fn int_from_pair(p: pest::iterators::Pair<Rule>) -> usize {
     assert_eq!(p.as_rule(), Rule::int);
     p.as_str().parse().unwrap()
 }
 
-fn literal_from_pair(p: pest::iterators::Pair<Rule>) -> Value {
+pub fn literal_from_pair(p: pest::iterators::Pair<Rule>) -> Value {
     assert_eq!(p.as_rule(), Rule::literal);
     let literal = p.into_inner().exactly_one().unwrap();
     match literal.as_rule() {
@@ -112,6 +112,15 @@ impl<'t> Namespace<'t> {
                         value: DeclValue::Namespace(ns),
                     })
                 }
+                Rule::proc_decl => {
+                    let (ident, args, body) = decl.into_inner().collect_tuple().unwrap();
+                    assert_eq!(ident.as_rule(), Rule::identifier);
+
+                    res.decls.push(Decl {
+                        name: ident_from_pair(ident).as_str().to_owned(),
+                        value: DeclValue::Proc(Proc { args, body }),
+                    })
+                }
                 _ => unreachable!(),
             }
         }
@@ -143,6 +152,13 @@ impl<'t> Decl<'t> {
 pub enum DeclValue<'t> {
     Namespace(Namespace<'t>),
     Code(Code<'t>),
+    Proc(Proc<'t>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Proc<'t> {
+    pub args: Pair<'t, Rule>,
+    pub body: Pair<'t, Rule>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -202,6 +218,34 @@ impl<'t> Expression<'t> {
     }
 }
 
+pub struct Path<'t> {
+    pub span: Span<'t>,
+    pub segments: Vec<Span<'t>>,
+}
+
+impl<'t> From<Pair<'t, Rule>> for Path<'t> {
+    fn from(value: Pair<'t, Rule>) -> Self {
+        assert_eq!(value.as_rule(), Rule::path);
+        let span = value.as_span();
+        let segments = value.into_inner().map(ident_from_pair).collect();
+        Self { span, segments }
+    }
+}
+
+pub enum PathOrIdent<'t> {
+    Path(Path<'t>),
+    Ident(Span<'t>),
+}
+
+impl<'t> From<Pair<'t, Rule>> for PathOrIdent<'t> {
+    fn from(value: Pair<'t, Rule>) -> Self {
+        match value.as_rule() {
+            Rule::path => Self::Path(value.into()),
+            Rule::identifier => Self::Ident(value.as_span()),
+            _ => unreachable!("unexpected rule: {:?}", value),
+        }
+    }
+}
 // impl From<bool> for InnerExpression {
 //     fn from(value: bool) -> Self {
 //         Self::Bool(value)
