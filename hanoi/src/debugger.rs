@@ -103,7 +103,8 @@ impl<'t> Debugger<'t> {
                     itertools::EitherOrBoth::Left(v) => (v, None),
                     itertools::EitherOrBoth::Right(_) => panic!(
                         "name with no value?\nnames: {:?}\n stack: {:?}",
-                        names, self.vm.stack.iter().rev().collect_vec()
+                        names,
+                        self.vm.stack.iter().rev().collect_vec()
                     ),
                 };
                 Row::new([
