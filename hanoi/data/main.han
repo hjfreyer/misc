@@ -67,6 +67,9 @@ mod tests {
         bind next;
             next @basic_csv @yield caller #curry #curry #curry @exec;
         bind caller;
+        bind next;
+            next @manually_drive_map @yield caller #curry #curry #curry @exec;
+        bind caller;
             @eos caller #curry @exec
     };
 
@@ -137,6 +140,44 @@ mod tests {
                 tag @eos #assert_eq
                 @pass caller #curry @exec
         };
+
+        let manually_drive_map = {
+            bind caller;
+            bind next;
+                caller next #curry this.super.super.iter.map #curry @exec;
+            bind cont;
+            bind iter;
+            bind req;
+            bind caller;
+            bind next;
+                req @request #assert_eq iter @iter #assert_eq
+                caller next #curry 1 @yield cont #curry #curry #curry @exec;
+            bind cont;
+            bind one;
+            bind fn;
+            bind req;
+            bind caller;
+            bind next;
+                req @request #assert_eq fn @fn #assert_eq one 1 #assert_eq
+                caller next #curry 2 cont #curry #curry @exec;
+            bind cont;
+            bind two;
+            bind yld;
+            bind caller;
+            bind next;
+                yld @yield #assert_eq two 2 #assert_eq
+                caller next #curry cont #curry @exec;
+            bind cont;
+            bind iter;
+            bind req;
+            bind caller;
+            bind next;
+                req @request #assert_eq iter @iter #assert_eq
+                caller next #curry @eos cont #curry #curry @exec;
+            bind eos;
+            bind caller;
+                eos @eos #assert_eq @pass caller #curry @exec
+        };
     }
 
     let run = {
@@ -189,6 +230,19 @@ mod iter {
 
     proc symbol_chars(offset, symbol, caller) {
         this.symbol_chars_inner(0, symbol, caller)
+    }
+
+    proc map(caller) {
+        match caller(@request, @iter) {
+            (@eos, caller) => {
+                caller(@eos)
+            }
+            (@yield, item, caller) => {
+                let (applied, caller) = caller(@request, @fn, item);
+                let (caller) = caller(@yield, applied);
+                this.map(caller)
+            }
+        }
     }
 }
 

@@ -92,7 +92,7 @@ proc_statement = { proc_let }
 
 proc_let = { "let" ~ proc_args ~ "=" ~ proc_expr ~ ";" }
 
-proc_endpoint = { proc_if | proc_func_call }
+proc_endpoint = { proc_if | proc_func_call | proc_match_block }
 
 proc_if = {
     "if" ~ identifier ~ "{" ~ proc_block ~ "}" ~ "else" ~ "{" ~ proc_block ~ "}"
@@ -112,4 +112,13 @@ proc_func_call_arg = _{
     literal
   | copy
   | identifier
+}
+
+proc_match_block = { "match" ~ proc_expr ~ "{" ~ proc_match_cases ~ "}" }
+
+proc_match_cases = { proc_match_case* }
+proc_match_case  = { "(" ~ literal ~ proc_match_bindings_tail ~ ")" ~ "=>" ~ "{" ~ proc_block ~ "}" }
+
+proc_match_bindings_tail = {
+    ("," ~ identifier)*
 }

@@ -149,7 +149,7 @@ impl<'t> Library<'t> {
                 let mut builder =
                     SentenceBuilder::new(Some(name.to_owned()), ns_idx, names.clone());
 
-                self.visit_proc_expr(ns_idx, &mut builder, expr);
+                builder.proc_expr(expr);
 
                 builder.sd_top(span);
 
@@ -172,54 +172,6 @@ impl<'t> Library<'t> {
             _ => unreachable!("Unexpected rule: {:?}", statement),
         }
     }
-    fn visit_proc_expr(
-        &mut self,
-        ns_idx: NamespaceIndex,
-        // names: &mut VecDeque<Option<String>>,
-        builder: &mut SentenceBuilder<'t>,
-        expr: Pair<'t, Rule>,
-    ) {
-        assert_eq!(expr.as_rule(), Rule::proc_expr);
-        let expr = expr.into_inner().exactly_one().unwrap();
-        match expr.as_rule() {
-            Rule::proc_func_call => {
-                let (func, args) = expr.into_inner().collect_tuple().unwrap();
-                let func = ast::PathOrIdent::from(func);
-
-                let args = args.into_inner().collect_vec();
-
-                for arg in args.iter().rev() {
-                    match arg.as_rule() {
-                        Rule::identifier => {
-                            let arg = ident_from_pair(arg.clone());
-                            builder.mv(arg, arg.as_str());
-                        }
-                        Rule::copy => {
-                            let arg = arg.clone().into_inner().exactly_one().unwrap();
-                            let arg = ident_from_pair(arg);
-                            builder.cp(arg, arg.as_str());
-                        }
-                        Rule::literal => {
-                            let lit = literal_from_pair(arg.clone());
-                            builder.literal(arg.as_span(), lit);
-                        }
-                        _ => unreachable!("Unexpected rule: {:?}", arg),
-                    }
-                }
-
-                match func {
-                    ast::PathOrIdent::Path(p) => builder.path(p),
-                    ast::PathOrIdent::Ident(i) => builder.mv(i, i.as_str()),
-                }
-
-                for arg in args.into_iter() {
-                    builder.builtin(arg.as_span(), Builtin::Curry);
-                }
-
-            }
-            _ => unreachable!("Unexpected rule: {:?}", expr),
-        }
-    }
 
     fn visit_proc_endpoint(
         &mut self,
@@ -238,38 +190,7 @@ impl<'t> Library<'t> {
                 let mut builder =
                     SentenceBuilder::new(Some(name.to_owned()), ns_idx, names.clone());
 
-                let (func, args) = endpoint.into_inner().collect_tuple().unwrap();
-                let func = ast::PathOrIdent::from(func);
-
-                let args = args.into_inner().collect_vec();
-
-                for arg in args.iter().rev() {
-                    match arg.as_rule() {
-                        Rule::identifier => {
-                            let arg = ident_from_pair(arg.clone());
-                            builder.mv(arg, arg.as_str());
-                        }
-                        Rule::copy => {
-                            let arg = arg.clone().into_inner().exactly_one().unwrap();
-                            let arg = ident_from_pair(arg);
-                            builder.cp(arg, arg.as_str());
-                        }
-                        Rule::literal => {
-                            let lit = literal_from_pair(arg.clone());
-                            builder.literal(arg.as_span(), lit);
-                        }
-                        _ => unreachable!("Unexpected rule: {:?}", arg),
-                    }
-                }
-
-                match func {
-                    ast::PathOrIdent::Path(p) => builder.path(p),
-                    ast::PathOrIdent::Ident(i) => builder.mv(i, i.as_str()),
-                }
-
-                for arg in args.into_iter() {
-                    builder.builtin(arg.as_span(), Builtin::Curry);
-                }
+                builder.proc_func_call(endpoint);
 
                 while builder.names.len() > 1 {
                     builder.drop_idx(span, 1);
@@ -298,6 +219,81 @@ impl<'t> Library<'t> {
                 builder.literal(span, Value::Pointer(Closure(vec![], true_case)));
                 builder.literal(span, Value::Pointer(Closure(vec![], false_case)));
                 builder.literal(span, Value::Symbol("if".to_owned()));
+
+                self.sentences.push_and_get_key(builder.build())
+            }
+            Rule::proc_match_block => {
+                let span = endpoint.as_span();
+                let (expr, cases) = endpoint.into_inner().collect_tuple().unwrap();
+
+                let mut builder =
+                    SentenceBuilder::new(Some(name.to_owned()), ns_idx, names.clone());
+
+                builder.proc_expr(expr);
+                // Stack: (leftover names) to_call
+
+                builder.sd_top(span);
+                // Stack: to_call (leftover names)
+
+                let mut leftover_names = builder.names.clone();
+                leftover_names.pop_back();
+                dbg!(&leftover_names);
+
+                assert_eq!(cases.as_rule(), Rule::proc_match_cases);
+                let cases = cases.into_inner().collect_vec();
+
+                let mut panic_builder =
+                    SentenceBuilder::new(Some(name.to_owned()), ns_idx, VecDeque::new());
+                panic_builder.symbol(span, "panic");
+                let panic_idx = self.sentences.push_and_get_key(panic_builder.build());
+
+                let mut next_case = panic_idx;
+                for case in cases.into_iter().rev() {
+                    let case_span = case.as_span();
+                    let (discrim, bindings, body) = case.into_inner().collect_tuple().unwrap();
+
+                    let if_case_matches_names :VecDeque<Option<String>> =
+                        // Preserved names from before the call.
+                        leftover_names.iter().cloned()
+                        // Empty slot for the discriminator.
+                        .chain([None])
+                        // Then the bindings.
+                        .chain(
+                            bindings
+                            .into_inner()
+                            .map(|p| Some(ident_from_pair(p).as_str().to_owned()))
+                        ).collect();
+
+                    let if_case_matches_idx =
+                        self.visit_proc_block_pair(name, ns_idx, if_case_matches_names, body);
+
+                    let discrim = literal_from_pair(discrim);
+
+                    let mut case_builder =
+                        SentenceBuilder::new(Some(name.to_owned()), ns_idx, VecDeque::new());
+                    // Copy the first thing after the leftover names.
+                    case_builder.cp_idx(case_span, leftover_names.len());
+                    case_builder.literal(case_span, discrim);
+                    case_builder.builtin(case_span, Builtin::Eq);
+                    case_builder.literal(
+                        case_span,
+                        Value::Pointer(Closure(vec![], if_case_matches_idx)),
+                    );
+                    case_builder.literal(case_span, Value::Pointer(Closure(vec![], next_case)));
+                    case_builder.symbol(case_span, "if");
+                    next_case = self.sentences.push_and_get_key(case_builder.build());
+                }
+
+                builder.literal(span, Value::Pointer(Closure(vec![], next_case)));
+                // Stack: to_call (leftover names) match_beginning
+
+                while builder.names.len() > 2 {
+                    builder.builtin(span, Builtin::Curry);
+                }
+                // Stack: to_call curried_match_beginning
+                builder.mv_idx(span, 1);
+                builder.builtin(span, Builtin::Curry);
+                builder.symbol(span, "exec");
 
                 self.sentences.push_and_get_key(builder.build())
             }
@@ -636,6 +632,10 @@ impl<'t> SentenceBuilder<'t> {
         self.names.push_front(None);
     }
 
+    pub fn symbol(&mut self, span: Span<'t>, symbol: &str) {
+        self.literal(span, Value::Symbol(symbol.to_owned()))
+    }
+
     pub fn mv(&mut self, span: Span<'t>, name: &str) {
         let Some(idx) = self.names.iter().position(|n| match n {
             Some(n) => n.as_str() == name,
@@ -775,6 +775,53 @@ impl<'t> SentenceBuilder<'t> {
             Builtin::Unstash => {
                 todo!()
             }
+        }
+    }
+
+    fn proc_expr(&mut self, expr: Pair<'t, Rule>) {
+        assert_eq!(expr.as_rule(), Rule::proc_expr);
+        let expr = expr.into_inner().exactly_one().unwrap();
+        match expr.as_rule() {
+            Rule::proc_func_call => {
+                self.proc_func_call(expr);
+            }
+            _ => unreachable!("Unexpected rule: {:?}", expr),
+        }
+    }
+
+    fn proc_func_call(&mut self, func_call: Pair<'t, Rule>) {
+        assert_eq!(func_call.as_rule(), Rule::proc_func_call);
+        let (func, args) = func_call.into_inner().collect_tuple().unwrap();
+        let func = ast::PathOrIdent::from(func);
+
+        let args = args.into_inner().collect_vec();
+
+        for arg in args.iter().rev() {
+            match arg.as_rule() {
+                Rule::identifier => {
+                    let arg = ident_from_pair(arg.clone());
+                    self.mv(arg, arg.as_str());
+                }
+                Rule::copy => {
+                    let arg = arg.clone().into_inner().exactly_one().unwrap();
+                    let arg = ident_from_pair(arg);
+                    self.cp(arg, arg.as_str());
+                }
+                Rule::literal => {
+                    let lit = literal_from_pair(arg.clone());
+                    self.literal(arg.as_span(), lit);
+                }
+                _ => unreachable!("Unexpected rule: {:?}", arg),
+            }
+        }
+
+        match func {
+            ast::PathOrIdent::Path(p) => self.path(p),
+            ast::PathOrIdent::Ident(i) => self.mv(i, i.as_str()),
+        }
+
+        for arg in args.into_iter() {
+            self.builtin(arg.as_span(), Builtin::Curry);
         }
     }
 }
