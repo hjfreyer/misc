@@ -146,20 +146,18 @@ mod tests {
             bind next;
                 caller next #curry this.super.super.iter.map #curry @exec;
             bind cont;
-            bind iter;
-            bind req;
+            bind reqiter;
             bind caller;
             bind next;
-                req @request #assert_eq iter @iter #assert_eq
+                reqiter @requestiter #assert_eq
                 caller next #curry 1 @yield cont #curry #curry #curry @exec;
             bind cont;
             bind one;
-            bind fn;
-            bind req;
+            bind reqfn;
             bind caller;
             bind next;
-                req @request #assert_eq fn @fn #assert_eq one 1 #assert_eq
-                caller next #curry 2 cont #curry #curry @exec;
+                reqfn @requestfn #assert_eq one 1 #assert_eq
+                caller next #curry 2 @ok cont #curry #curry #curry @exec;
             bind cont;
             bind two;
             bind yld;
@@ -168,11 +166,10 @@ mod tests {
                 yld @yield #assert_eq two 2 #assert_eq
                 caller next #curry cont #curry @exec;
             bind cont;
-            bind iter;
             bind req;
             bind caller;
             bind next;
-                req @request #assert_eq iter @iter #assert_eq
+                req @requestiter #assert_eq
                 caller next #curry @eos cont #curry #curry @exec;
             bind eos;
             bind caller;
@@ -233,20 +230,115 @@ mod iter {
     }
 
     proc map(caller) {
-        match caller(@request, @iter) {
+        match caller(@requestiter) {
             (@eos, caller) => {
                 caller(@eos)
             }
             (@yield, item, caller) => {
-                let (applied, caller) = caller(@request, @fn, item);
-                let (caller) = caller(@yield, applied);
-                this.map(caller)
+                match caller(@requestfn, item) {
+                    (@ok, applied, caller) => {
+                        let (caller) = caller(@yield, applied);
+                        this.map(caller)
+                    }
+                }
+            }
+        }
+    }
+
+    proc double(x, caller) {
+        let (res) = this.add(*x, x);
+        caller(@ok, res)
+    }
+
+    let curry1 = {
+        bind caller;
+        bind arg;
+        bind fn;
+            arg fn #curry caller #curry @exec
+    };
+
+    let curry2 = {
+        bind caller;
+        bind arg0;
+        bind arg1;
+        bind fn;
+            arg0 arg1 fn #curry #curry caller #curry @exec
+    };
+
+    let curry3 = {
+        bind caller;
+        bind arg0;
+        bind arg1;
+        bind arg2;
+        bind fn;
+            arg0 arg1 arg2 fn #curry #curry #curry caller #curry @exec
+    };
+
+    let bind_requestfn = {
+        bind caller;
+        bind fn;
+        bind inner;
+            fn inner this.do_bind_requestfn #curry #curry caller #curry @exec
+    };
+
+    proc do_bind_requestfn(inner, fn, caller) {
+        match inner() {
+            (@requestfn, input, cont) => {
+                match (*fn)(input) {
+                    (@ok, applied) => {
+                        let (curried) = this.curry2(cont, @ok, applied);
+                        this.do_bind_requestfn(curried, fn, caller)
+                    }
+                }
+            }
+            (@requestiter, resp) => {
+                match caller(@requestiter) {
+                    (@yield, item, caller) => {
+                        let (curried) = this.curry2(resp, @yield, item);
+                        this.do_bind_requestfn(curried, fn, caller)
+                    }
+                    (@eos, caller) => {
+                        let (curried) = this.curry1(resp, @eos);
+                        this.do_bind_requestfn(curried, fn, caller)
+                    }
+                }
+            }
+            (@yield, item, cont) => {
+                let (cont) = this.bind_requestfn(cont, fn);
+                caller(@yield, item, cont)
+            }
+            (@eos) => {
+                caller(@eos)
             }
         }
     }
 }
 
 let main = {
-    this.tests.cases.symbol_iter #curry @exec;
-    @halt
+    bind next;
+        next this.iter.double this.iter.map this.iter.bind_requestfn #curry #curry #curry @exec;
+    bind bound;
+    bind next;
+        next bound #curry @exec;
+  
+    bind cont;
+    bind req;
+    bind next;
+        req @requestiter #assert_eq
+        next 1 @yield cont #curry #curry #curry @exec;
+
+    bind continue;
+    bind item;
+    bind yield;
+    bind next;
+        2 item #assert_eq yield @yield #assert_eq
+        next continue #curry @exec;
+
+    bind cont;
+    bind req;
+    bind next;
+        req @requestiter #assert_eq
+        next @eos cont #curry #curry @exec;
+    bind eos;
+        eos @eos #assert_eq @pass
 };

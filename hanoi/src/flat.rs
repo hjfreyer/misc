@@ -237,7 +237,6 @@ impl<'t> Library<'t> {
 
                 let mut leftover_names = builder.names.clone();
                 leftover_names.pop_back();
-                dbg!(&leftover_names);
 
                 assert_eq!(cases.as_rule(), Rule::proc_match_cases);
                 let cases = cases.into_inner().collect_vec();
@@ -792,7 +791,11 @@ impl<'t> SentenceBuilder<'t> {
     fn proc_func_call(&mut self, func_call: Pair<'t, Rule>) {
         assert_eq!(func_call.as_rule(), Rule::proc_func_call);
         let (func, args) = func_call.into_inner().collect_tuple().unwrap();
-        let func = ast::PathOrIdent::from(func);
+        let (func, func_copied) =  if let Rule::proc_func_name_copied = func.as_rule() {
+            ( ast::PathOrIdent::from(func.into_inner().exactly_one().unwrap()), true)
+        } else {
+           ( ast::PathOrIdent::from(func), false)
+        };
 
         let args = args.into_inner().collect_vec();
 
@@ -811,13 +814,18 @@ impl<'t> SentenceBuilder<'t> {
                     let lit = literal_from_pair(arg.clone());
                     self.literal(arg.as_span(), lit);
                 }
+                Rule::path => {
+                    let path = Path::from(arg.clone());
+                    self.path(path);
+                }
                 _ => unreachable!("Unexpected rule: {:?}", arg),
             }
         }
 
-        match func {
-            ast::PathOrIdent::Path(p) => self.path(p),
-            ast::PathOrIdent::Ident(i) => self.mv(i, i.as_str()),
+        match (func, func_copied) {
+            (ast::PathOrIdent::Path(p), _)=> self.path(p),
+            (ast::PathOrIdent::Ident(i), false) => self.mv(i, i.as_str()),
+            (ast::PathOrIdent::Ident(i), true) => self.cp(i, i.as_str()),
         }
 
         for arg in args.into_iter() {

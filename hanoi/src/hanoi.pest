@@ -17,7 +17,7 @@ lit_char = @{
   | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
 
-identifier   = @{ !keyword ~ id_non_digit ~ (id_non_digit | ASCII_DIGIT)* }
+identifier   = @{ id_non_digit ~ (id_non_digit | ASCII_DIGIT)* }
 id_non_digit = _{ ASCII_ALPHA | "_" }
 
 symbol = { "@" ~ (identifier | string) }
@@ -37,8 +37,6 @@ literal = { bool | int | char_lit | symbol | nil }
 builtin = { "#" ~ identifier }
 
 this = _{ "this" }
-
-keyword = _{ "bind" | "match" | "if" | this }
 
 func_call = { "#" ~ identifier ~ "(" ~ (int | identifier) ~ ")" }
 
@@ -64,7 +62,7 @@ match_block = { "match" ~ "(" ~ int ~ ")" ~ "{" ~ match_cases ~ "}" ~ "else" ~ "
 match_cases = { match_case* }
 match_case  = { literal ~ "=>" ~ "{" ~ code ~ "}" }
 
-code = { and_then | if_statement | match_block | bind | sentence }
+code = { bind | and_then | if_statement | match_block | sentence }
 
 code_decl = { "let" ~ identifier ~ "=" ~ "{" ~ code ~ "}" ~ ";" }
 
@@ -92,7 +90,7 @@ proc_statement = { proc_let }
 
 proc_let = { "let" ~ proc_args ~ "=" ~ proc_expr ~ ";" }
 
-proc_endpoint = { proc_if | proc_func_call | proc_match_block }
+proc_endpoint = { proc_if | proc_match_block | proc_func_call }
 
 proc_if = {
     "if" ~ identifier ~ "{" ~ proc_block ~ "}" ~ "else" ~ "{" ~ proc_block ~ "}"
@@ -100,8 +98,9 @@ proc_if = {
 
 proc_expr = { literal | proc_func_call }
 
-proc_func_call =  { proc_func_name ~ proc_func_call_args }
-proc_func_name = _{ path | identifier }
+proc_func_call        =  { proc_func_name ~ proc_func_call_args }
+proc_func_name        = _{ proc_func_name_copied | path | identifier }
+proc_func_name_copied =  { "(" ~ "*" ~ identifier ~ ")" }
 
 proc_func_call_args = {
     "(" ~ ")"
@@ -111,6 +110,7 @@ proc_func_call_args = {
 proc_func_call_arg = _{
     literal
   | copy
+  | path
   | identifier
 }
 
