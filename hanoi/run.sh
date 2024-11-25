@@ -1,1 +1,0 @@
-cargo run -- debug data/main.han
